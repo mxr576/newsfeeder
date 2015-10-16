@@ -1,0 +1,6 @@
+name = Feed Enhancer UI
+description = UI for the Feed Enhancer module.
+core = 7.x
+package = Feed Enhancer
+
+dependencies[] = feed_enhancer

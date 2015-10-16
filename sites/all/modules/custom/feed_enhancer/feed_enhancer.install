@@ -1,0 +1,164 @@
+<?php
+/**
+ * @file
+ * Install, uninstall and update function for Feed Enhancer.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function feed_enhancer_schema() {
+  $schema = [];
+
+  $schema['feeds_importer_enhancer'] = [
+    'description' => 'Stores all Feed Enhancer settings of each {feeds_importer}.',
+    'fields' => [
+      'id' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Id of the feed_importer object.',
+      ],
+      'config' => [
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => FALSE,
+        'description' => 'Configuration of the enabled Feed Enhancer Plugins.',
+        'serialize' => TRUE,
+      ],
+      'status' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'The exportable status of the entity.',
+      ],
+      'module' => [
+        'description' => 'The name of the providing module, if the entity has been defined in code.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'foreign keys' => [
+      'name' => [
+        'table' => 'feed_importer',
+        'columns' => ['id' => 'id'],
+      ],
+    ],
+  ];
+
+  $schema['feeds_source_enhancer'] = [
+    'description' => 'Stores all Feed Enhancer settings of each {feeds_source}.',
+    'fields' => [
+      'id' => [
+        'description' => 'The primary identifier for the Feed Enhancer which belongs to the {feeds_source}.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'feed_importer_id' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Id of the {feeds_importer} object.',
+      ],
+      'feed_source_nid' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+        'description' => 'Node id of the {feeds_source}, if attached to a node.',
+      ],
+      'config' => [
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => FALSE,
+        'description' => 'Configuration of the enabled Feed Enhancer Plugins.',
+        'serialize' => TRUE,
+      ],
+      'status' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'The exportable status of the entity.',
+      ],
+      'module' => [
+        'description' => 'The name of the providing module, if the entity has been defined in code.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'feeds_source' => ['feed_importer_id', 'feed_source_nid'],
+    ],
+    'foreign keys' => [
+      'node' => [
+        'table' => 'node',
+        'columns' => ['feed_source_nid' => 'nid'],
+      ],
+      'feeds_importer' => [
+        'table' => 'feeds_importer',
+        'columns' => ['feed_importer_id' => 'id'],
+      ],
+    ],
+  ];
+
+  $schema['feed_enhancer_enhanced_entity'] = [
+    'description' => 'Stores information about the enhanced entities.',
+    'fields' => [
+      'id' => [
+        'description' => 'The primary identifier for a "Feed Enhancer: Enhanced entity" entity.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'entity' => [
+        'description' => 'The machine name of the entity.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'bundle' => [
+        'description' => 'The bundle of the entity.',
+        'type' => 'varchar',
+        'length' => 128,
+        'default' => NULL,
+      ],
+      'entity_id' => [
+        'description' => 'ID of the enhanced entity.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+      'settings' => [
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => FALSE,
+        'description' => 'The settings of the Feed Enhancer for this entity and bundle.',
+        'serialize' => TRUE,
+      ],
+      'previous_plugin' => [
+        'description' => 'The name of the previous enhancer plugin, which successfully enhanced the entity.',
+        'type' => 'varchar',
+        'length' => 128,
+        'default' => NULL,
+      ],
+    ],
+    'primary key' => ['id', 'entity', 'bundle'],
+    'indexes' => [
+      'feed_enhancer_entity' => ['id', 'entity', 'bundle'],
+      'feed_enhancer_entity_entity_bundle' => ['entity', 'bundle'],
+    ],
+  ];
+
+  return $schema;
+}

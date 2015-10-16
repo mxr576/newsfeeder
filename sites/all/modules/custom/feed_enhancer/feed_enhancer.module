@@ -1,0 +1,614 @@
+<?php
+/**
+ * @file
+ * Module file for Feed Enhancer.
+ */
+
+/**
+ * Implements hook_entity_info().
+ */
+function feed_enhancer_entity_info() {
+  $return = [];
+
+  $return['feeds_importer_enhancer'] = [
+    'label' => t('Feeds Importer Enhancer'),
+    'entity class' => 'FeedEnhancerFeedsImporterEntity',
+    'controller class' => 'EntityAPIControllerExportable',
+    'label callback' => 'feed_enhancer_feeds_importer_enhancer_entity_label_callback',
+    'base table' => 'feeds_importer_enhancer',
+    'module' => 'feed_enhancer',
+    'fieldable' => FALSE,
+    'exportable' => TRUE,
+    'entity keys' => [
+      'id' => 'id',
+    ],
+  ];
+
+  $return['feeds_source_enhancer'] = [
+    'label' => t('Feeds Source Enhancer'),
+    'entity class' => 'FeedEnhancerFeedsSourceEntity',
+    'controller class' => 'EntityAPIControllerExportable',
+    'label callback' => 'feed_enhancer_feeds_source_enhancer_entity_label_callback',
+    'base table' => 'feeds_source_enhancer',
+    'module' => 'feed_enhancer',
+    'fieldable' => FALSE,
+    'exportable' => TRUE,
+    'entity keys' => [
+      'id' => 'id',
+    ],
+  ];
+
+  $return['feed_enhancer_enhanced_entity'] = [
+    'label' => t('Feed Enhancer: Enhanced Entity'),
+    'entity class' => 'Entity',
+    'controller class' => 'EntityAPIController',
+    'base table' => 'feed_enhancer_enhanced_entity',
+    'module' => 'feed_enhancer',
+    'fieldable' => FALSE,
+    'entity keys' => [
+      'id' => 'id',
+    ],
+  ];
+
+  return $return;
+}
+
+/**
+ * Return the label of the Feeds Source Enhancer entity.
+ *
+ * @see callback_entity_info_label()
+ */
+function feed_enhancer_feeds_importer_enhancer_entity_label_callback($entity, $entity_type) {
+  if ($feed_importer = feeds_importer($entity->id)) {
+    $config = $feed_importer->getConfig();
+    return $config['name'];
+  }
+  return '';
+}
+
+/**
+ * Return the label of the Feed Enhancer: Feeds source entity.
+ *
+ * @see callback_entity_info_label()
+ */
+function feed_enhancer_feeds_source_enhancer_entity_label_callback($entity, $entity_type) {
+  if ($feed_source = node_load($entity->feed_nid)) {
+    return $feed_source->title;
+  }
+  return '';
+}
+
+/**
+ * Implements hook_feed_enhancer_plugin_info().
+ */
+function feed_enhancer_feed_enhancer_enhancer_plugin_info() {
+  $plugins['feeder_enhancer_api_full_content_enhancer'] = [
+    'name' => t('Full Content Enhancer'),
+    'description' => t("Retrieve the full content of the feed item. This could be useful, because the feed items usually contains only a trimmed version of the original page's content."),
+    'class' => 'FullContentFeedItemEnhancerPlugin',
+    'weight' => -10,
+  ];
+  $plugins['feeder_enhancer_api_stanbol_enhancer'] = [
+    'name' => t('Stanbol Enhancer'),
+    'description' => t("Find places, organizations and people in the feed item's body. Also detect the language of the content."),
+    'class' => 'StanbolFeedItemEnhancerPlugin',
+    'weight' => 0,
+  ];
+
+  return $plugins;
+}
+
+/**
+ * Returns a list of all available Feed Enhancer plugins.
+ *
+ * @see hook_feed_enhancer_plugin_info()
+ *
+ * @return array
+ *   An array of all available Feed enhancer plugins, keyed by the plugin
+ *   names
+ */
+function feed_enhancer_feed_enhancer_plugin_info() {
+  $plugins = &drupal_static(__FUNCTION__);
+  if (!isset($plugins)) {
+    $plugins = module_invoke_all('feed_enhancer_enhancer_plugin_info');
+    // Fill optional settings with default values.
+    foreach ($plugins as $id => $callback) {
+      $plugins[$id] += ['weight' => 0];
+    }
+    // Invoke alter hook.
+    drupal_alter('feed_enhancer_enhancer_plugin_info_alter', $plugins);
+  }
+  return $plugins;
+}
+
+/**
+ * Load a Feeds Importer Enhancer of the Feeds Importer.
+ *
+ * @param string $id
+ *   ID of the Feeds Importer to which this enhancer is attached to.
+ *
+ * @return bool|\FeedEnhancerFeedsImporterEntity
+ *   Enhancer entity of the FeedsImporter if exists, or FALSE.
+ */
+function feed_enhancer_load_feeds_importer_enhancer($id) {
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'feeds_importer_enhancer');
+  if ($id !== NULL) {
+    $query->propertyCondition('id', $id);
+    $query->range(0, 1);
+    $result = $query->execute();
+    if (!empty($result['feeds_importer_enhancer'])) {
+      $entity = array_shift($result['feeds_importer_enhancer']);
+      return entity_load_single('feeds_importer_enhancer', $entity->id);
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Create a Feed Enhancer for the Feeds Importer.
+ *
+ * @param string $feed_importer_id
+ *   ID of the Feeds Importer to which this enhancer will be attached to.
+ * @param array $config
+ *   Configuration of the Feed Enhancer entity.
+ *
+ * @return FeedEnhancerFeedsImporterEntity | bool
+ *   Feeds Importer Enhancer entity on success, else FALSE.
+ */
+function feed_enhancer_feeds_importer_enhancer_create($feed_importer_id, array $config) {
+  $values = ['id' => $feed_importer_id, 'config' => $config];
+  if (entity_create('feeds_importer_enhancer', $values)->save()) {
+    return feed_enhancer_load_feeds_importer_enhancer($feed_importer_id);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Load a Feeds Source Enhancer of the Feeds Source.
+ *
+ * @param string $id
+ *   ID of the Feeds Source to which this enhancer is attached to.
+ * @param array $conditions
+ *   EntityFieldQuery conditions for the Feeds Source Enhancer.
+ *
+ * @return bool|\FeedEnhancerFeedsSourceEntity
+ *   Feeds Source Enhancer if exists, or FALSE.
+ */
+function feed_enhancer_load_feeds_source_enhancer($id = NULL, array $conditions = []) {
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'feeds_source_enhancer');
+  if (!empty($id)) {
+    $query->propertyCondition('id', $id);
+  }
+  if (!empty($conditions)) {
+    foreach ($conditions as $prop_name => $prop_value) {
+      $query->propertyCondition($prop_name, $prop_value);
+    }
+  }
+  $query->range(0, 1);
+  $result = $query->execute();
+  if (!empty($result['feeds_source_enhancer'])) {
+    $entity = array_shift($result['feeds_source_enhancer']);
+    return entity_load_single('feeds_source_enhancer', $entity->id);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Load a Feeds Source Enhancer of a Feeds Source.
+ *
+ * Load a Feeds Source Enhancer of a Feeds Source from the Feeds Importer ID
+ * and the Node id of the Feeds Source node.
+ *
+ * @param string $feed_importer
+ *   ID of the Feeds Importer.
+ * @param int $feed_nid
+ *   Node ID of the Feeds Source.
+ *
+ * @return bool|\FeedEnhancerFeedsSourceEntity
+ *   Feed Enhancer of the Feeds Source if exists, or FALSE.
+ */
+function feed_enhancer_feed_enhancer_source_load_by_feed_importer_and_feed_id($feed_importer, $feed_nid) {
+  return feed_enhancer_load_feeds_source_enhancer(NULL, [
+    'feed_importer_id' => $feed_importer,
+    'feed_source_nid' => $feed_nid,
+  ]);
+}
+
+/**
+ * Create a Feeds Source Enhancer entity for the Feeds source.
+ *
+ * @param string $feed_importer_id
+ *   ID of the Feeds Importer to which this Source belongs to.
+ * @param int $feed_nid
+ *   ID of the Feeds Source node.
+ * @param array $config
+ *   Configuration of the Feeds Source Enhancer entity.
+ *
+ * @return FeedEnhancerFeedsSourceEntity | bool
+ *   Feeds Source Enhancer entity on success, else FALSE.
+ */
+function feed_enhancer_feeds_source_enhancer_create($feed_importer_id, $feed_nid, array $config) {
+  $values = [
+    'feed_importer_id' => $feed_importer_id,
+    'feed_source_nid' => $feed_nid,
+  ];
+  $values['config'] = $config;
+  if (entity_create('feeds_source_enhancer', $values)->save()) {
+    return feed_enhancer_feed_enhancer_source_load_by_feed_importer_and_feed_id($feed_importer_id, $feed_nid);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Load the Feed Enhancer entity, which belongs to this FeedsConfigurable.
+ *
+ * @param \FeedsConfigurable $feeds_configurable
+ *   FeedsConfigurable object, either Importer or Source.
+ *
+ * @return bool|\FeedEnhancerFeedsImporterEntity|\FeedEnhancerFeedsSourceEntity
+ *   Feed Enhancer entity (Importer or Source) if exists,
+ *   else FALSE.
+ */
+function feed_enhancer_load_feed_enhancer_of_feeds_configurable(FeedsConfigurable $feeds_configurable) {
+  if ($feeds_configurable instanceof FeedsImporter) {
+    $feeds_configurable_config = $feeds_configurable->getConfig();
+    $feed_importer_id = feeds_get_importer_id($feeds_configurable_config['content_type']);
+    return feed_enhancer_load_feeds_importer_enhancer($feed_importer_id);
+  }
+  if ($feeds_configurable instanceof FeedsSource) {
+    return feed_enhancer_feed_enhancer_source_load_by_feed_importer_and_feed_id($feeds_configurable->__get('id'), $feeds_configurable->__get('feed_nid'));
+  }
+
+  return FALSE;
+}
+
+/**
+ * Create a Feed Enhancer entity for the FeedsConfigurable.
+ *
+ * @param \FeedsConfigurable $feeds_configurable
+ *   FeedsConfigurable object, either Importer or Source.
+ * @param array $config
+ *   Configuration of the Feed Enhancer.
+ *
+ * @return bool|\FeedEnhancerFeedsImporterEntity|\FeedEnhancerFeedsSourceEntity
+ *   Feed Enhancer entity (Importer or Source) on success,
+ *   else FALSE.
+ */
+function feed_enhancer_create_feed_enhancer_for_feeds_configurable(FeedsConfigurable $feeds_configurable, array $config) {
+  if ($feeds_configurable instanceof FeedsImporter) {
+    $feeds_configurable_config = $feeds_configurable->getConfig();
+    $feed_importer_id = feeds_get_importer_id($feeds_configurable_config['content_type']);
+    return feed_enhancer_feeds_importer_enhancer_create($feed_importer_id, $config);
+  }
+  if ($feeds_configurable instanceof FeedsSource) {
+    return feed_enhancer_feeds_source_enhancer_create($feeds_configurable->__get('id'), $feeds_configurable->__get('feed_nid'), $config);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Save a Feed Enhancer entity.
+ *
+ * @param \FeedEnhancerEntity $feed_enhancer
+ *   Feed Enhancer object child, either Importer or Source.
+ *
+ * @return bool|\FeedEnhancerFeedsImporterEntity|\FeedEnhancerFeedsSourceEntity
+ *   SAVED_NEW or SAVED_UPDATED on success, depending on the operation,
+ *   else FALSE.
+ */
+function feed_enhancer_feed_enhancer_save(FeedEnhancerEntity $feed_enhancer) {
+  if ($feed_enhancer instanceof FeedEnhancerFeedsImporterEntity) {
+    return entity_save('feeds_importer_enhancer', $feed_enhancer);
+  }
+  if ($feed_enhancer instanceof FeedEnhancerFeedsSourceEntity) {
+    return entity_save('feeds_source_enhancer', $feed_enhancer);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Load a Feed Enhancer: Enhanced entity object based on id or conditions.
+ *
+ * @param string $id
+ *   The id of the Feed Enhancer: Enhanced entity.
+ * @param array $conditions
+ *   EntityFieldQuery conditions for Feed Enhancer: Enhanced entity entity.
+ *
+ * @return bool|Entity
+ *   Feed Enhancer: Enhanced entity, if exists, else FALSE.
+ */
+function feed_enhancer_enhanced_entity_load($id = NULL, array $conditions = []) {
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'feed_enhancer_enhanced_entity');
+  if (!empty($id)) {
+    $query->propertyCondition('id', $id);
+  }
+  if (!empty($conditions)) {
+    foreach ($conditions as $prop_name => $prop_value) {
+      $query->propertyCondition($prop_name, $prop_value);
+    }
+  }
+  $query->range(0, 1);
+  $result = $query->execute();
+  if (!empty($result['feed_enhancer_enhanced_entity'])) {
+    $entity = array_shift($result['feed_enhancer_enhanced_entity']);
+    return entity_load_single('feed_enhancer_enhanced_entity', $entity->id);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Load the Feed Enhancer: Enhanced entity object of an entity.
+ *
+ * @param string $entity
+ *   Entity type.
+ * @param string $bundle
+ *   Bundle of the entity.
+ * @param int $entity_id
+ *   ID of the entity.
+ *
+ * @return bool|\Entity
+ *   Feed Enhancer: Enhanced entity of the entity, if exists, else FALSE.
+ */
+function feed_enhancer_load_enhanced_entity_from_entity_info($entity, $bundle, $entity_id) {
+  return feed_enhancer_enhanced_entity_load(NULL, [
+    'entity' => $entity,
+    'bundle' => $bundle,
+    'entity_id' => $entity_id,
+  ]);
+}
+
+/**
+ * Save a new Feed Enhancer: Enhanced entity to the database.
+ *
+ * @param string $entity
+ *   Entity type.
+ * @param string $bundle
+ *   Bundle of the entity.
+ * @param int $entity_id
+ *   ID of the entity.
+ * @param array $plugin_configs
+ *   Array of the Feed Enhancer configuration, when the entity is saved.
+ *
+ * @return bool|\Entity
+ *   Feed Enhancer: Enhanced entity of the entity, if exists, else FALSE.
+ */
+function feed_enhancer_insert_enhanced_entity_info($entity, $bundle, $entity_id, array $plugin_configs) {
+  $values = [
+    'entity' => $entity,
+    'bundle' => $bundle,
+    'entity_id' => $entity_id,
+    // Store the order of the plugins, this way we could find easier the
+    // next plugin which should be executed on the feed item.
+    'settings' => [
+      'plugins_order' => array_keys($plugin_configs),
+      'plugins_configs' => $plugin_configs,
+    ],
+  ];
+  if (entity_create('feed_enhancer_enhanced_entity', $values)->save()) {
+    return feed_enhancer_load_enhanced_entity_from_entity_info($entity, $bundle, $entity_id);
+  }
+
+  return FALSE;
+}
+
+/**
+ * Update an Enhanced entity status information.
+ *
+ * @param \Entity $enhanced_entity
+ *   Feed Enhancer: Enhanced entity object.
+ * @param array $plugin_configs
+ *   Config of the plugins which belongs to the enhanced entity's Feed Enhancer
+ *   entity.
+ * @param string $previous_plugin
+ *   Name of the previous plugin which successfully executed on the entity,
+ *   which this Enhanced entity object belongs to.
+ *
+ * @return bool
+ *   TRUE, if the information saved successfully, else FALSE.
+ */
+function feed_enhancer_update_enhanced_entity_of_entity(Entity $enhanced_entity, array $plugin_configs, $previous_plugin) {
+  $enhanced_entity->settings = [
+    'plugins_order' => array_keys($plugin_configs),
+    'plugins_configs' => $plugin_configs,
+  ];
+  $enhanced_entity->previous_plugin = $previous_plugin;
+  return entity_save('feed_enhancer_enhanced_entity', $enhanced_entity);
+}
+
+/**
+ * Implements hook_cron_queue_info().
+ */
+function feed_enhancer_cron_queue_info() {
+  $plugins = feed_enhancer_feed_enhancer_plugin_info();
+
+  // Create a individual queue for all available enhancer plugin.
+  return array_map(function ($plugin) {
+    return [
+      'worker callback' => '_feed_enhancer_process_plugin_on_feed_item_queue_worker',
+      'time' => 20,
+    ];
+  }, $plugins);
+}
+
+/**
+ * Common queue worker callback for all enhancer plugin queues.
+ *
+ * @param array $queue_item
+ *   Array of information about the queue item:
+ *     - enhancer_plugin: string, machine name of the enhancer plugin.
+ *     - entity_type: string, entity type of the processed queue item.
+ *     - bundle: string, bundle of the processed entity.
+ *     - entity_id = int, ID of the processed entity.
+ *
+ * @throws \Exception
+ *   Throw an exception, if the current queue item can not be processed properly
+ *   with the current queue enhancer. This is a necessary step for preserve
+ *   this item in the queue for the next run.
+ */
+function _feed_enhancer_process_plugin_on_feed_item_queue_worker(array $queue_item) {
+  // Validate that all necessary data is provided in the queue item.
+  if (!empty($queue_item['enhancer_plugin']) && !empty($queue_item['entity_type']) && !empty($queue_item['entity_id']) && !empty($queue_item['bundle'])) {
+    $entity_wrapper = entity_metadata_wrapper($queue_item['entity_type'], $queue_item['entity_id']);
+
+    // DEBUG ONLY
+    // TODO REMOVE IT!
+    // $feed_importer = feeds_importer_load('feed_importer');
+    // $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
+
+    if ($enhancer = feed_enhancer_get_enhancer_of_this_entity_through_wrapper($entity_wrapper)) {
+      if ($enhanced_entity_info = feed_enhancer_load_enhanced_entity_from_entity_info($queue_item['entity_type'], $queue_item['bundle'], $queue_item['entity_id'])) {
+        // Check if the enhancer settings of this entity does not changed
+        // since it was added to the queue.
+        if ($enhancer->config === $enhanced_entity_info->settings['plugins_configs']) {
+          // Check, if the current Feed enhancer plugin's settings exists in the
+          // currently processed feed item's settings, and the current plugin
+          // is enabled.
+          if (!empty($enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']]) && $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']]['status']) {
+            $feed_enhancer_plugins = feed_enhancer_feed_enhancer_plugin_info();
+            // Check, if the Feed enhancer plugin still exits in the available
+            // plugins.
+            if (!empty($feed_enhancer_plugins[$queue_item['enhancer_plugin']])) {
+              $enhancer_plugin = $feed_enhancer_plugins[$queue_item['enhancer_plugin']];
+              // Check, if the Feed enhancer plugin's class exists and it has
+              // the required processFeedItem method.
+              if (class_exists($enhancer_plugin['class']) && method_exists($enhancer_plugin['class'], 'processFeedItem')) {
+                // If the processFeedItem method returned with FALSE, then
+                // we need to drop an exception to preserve this feed item
+                // in the current queue and this way, enforce the
+                // system to try to process this feed item again with the
+                // current Feed Enhancer.
+                if (!call_user_func([$enhancer_plugin['class'], 'processFeedItem'], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])) {
+                  throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', ['@debug' => print_r($queue_item, TRUE)]));
+                }
+                // Update the Enhanced entity's info in the db.
+                feed_enhancer_update_enhanced_entity_of_entity($enhanced_entity_info, $enhancer->config, $queue_item['enhancer_plugin']);
+                $current_plugin_index = array_search($queue_item['enhancer_plugin'], $enhanced_entity_info->settings['plugins_order']);
+                // Add the Feed item to the next queue, if any.
+                if (isset($enhanced_entity_info->settings['plugins_order'][++$current_plugin_index])) {
+                  feed_enhancer_add_to_queue($enhanced_entity_info->settings['plugins_order'][$current_plugin_index], $entity_wrapper->type(), $entity_wrapper->getBundle(), $entity_wrapper->getIdentifier());
+                }
+              }
+            }
+          }
+        }
+        else {
+          // Update the Enhanced entity's settings and add it to the first queue
+          // again, because the feed item's source/importer settings changed.
+          feed_enhancer_update_enhanced_entity_of_entity($enhanced_entity_info, $enhancer->config, NULL);
+          $first_enhancer_plugin = key($enhancer->getConfig());
+          feed_enhancer_add_to_queue($first_enhancer_plugin, $entity_wrapper->type(), $entity_wrapper->getBundle(), $entity_wrapper->getIdentifier());
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function feed_enhancer_entity_insert($entity, $type) {
+  $entity_wrapper = entity_metadata_wrapper($type, $entity);
+  // If this entity has a Feed enhancer.
+  if ($enhancer = feed_enhancer_get_enhancer_of_this_entity_through_wrapper($entity_wrapper)) {
+
+    // DEBUG ONLY
+    // TODO REMOVE IT.
+    // if ($type == 'node') {
+    // $feed_importer = feeds_importer_load('feed_importer');
+    // $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
+
+
+    // Store the current Feed enhancer settings for this feed item.
+    // We use this information to validate, whether the settings has
+    // changed (ex.: the order of the enhancer plugins changed) while the feed
+    // item was in the enhancer plugins' queue.
+    feed_enhancer_insert_enhanced_entity_info($entity_wrapper->type(), $entity_wrapper->getBundle(), $entity_wrapper->getIdentifier(), $enhancer->getConfig());
+    $first_enhancer_plugin = key($enhancer->getConfig());
+    feed_enhancer_add_to_queue($first_enhancer_plugin, $entity_wrapper->type(), $entity_wrapper->getBundle(), $entity_wrapper->getIdentifier());
+  }
+}
+
+/**
+ * Check, if this entity is a feed item and an enhancer belongs to its parent.
+ *
+ * Check, if this entity is a feed item and its feed source or feed importer
+ * has enhancer settings.
+ *
+ * @param \EntityMetadataWrapper $entity_wrapper
+ *   EntityMetadataWrapper of the entity item.
+ *
+ * @return bool|\FeedEnhancerFeedsImporterEntity|\FeedEnhancerFeedsSourceEntity
+ *   Proper Feed Enhancer entity, if the entity is a feed item and its parent
+ *   has enhancer settings, otherwise FALSE.
+ */
+function feed_enhancer_get_enhancer_of_this_entity_through_wrapper(EntityMetadataWrapper $entity_wrapper) {
+  $enhancer = FALSE;
+  // Check, if this is a Feed node item.
+  if ($feed_nid = feeds_get_feed_nid($entity_wrapper->getIdentifier(), $entity_wrapper->type())) {
+    if ($feed_importer_id = _feeds_enhancer_get_feed_importer_of_feeds_source_from_feed_nid($feed_nid)) {
+      $feed_source = feeds_source($feed_importer_id, $entity_wrapper->getIdentifier());
+      // Try to load the enhancer, which belongs to this Feed node item.
+      // First check, if there is any Feed source specific settings and if not,
+      // then try to load the Feed importer's enhancer settings, if any.
+      if (!($enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_source))) {
+        $feed_importer = feeds_importer_load($feed_importer_id);
+        $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
+      }
+    }
+  }
+
+  return $enhancer;
+}
+
+/**
+ * Add an entity to the given queue.
+ *
+ * Feed Enhancer plugins' queues are dynamically generated, that is why the
+ * $enhancer_plugin parameter, which matches the name of the queue.
+ *
+ * @param string $enhancer_plugin
+ *   Name of the enhancer plugin, which is the name of the queue too.
+ * @param string $entity_type
+ *   Type of the entity.
+ * @param string $bundle
+ *   Bundle of the entity.
+ * @param int $entity_id
+ *   ID of the entity.
+ *
+ * @see feed_enhancer_cron_queue_info()
+ */
+function feed_enhancer_add_to_queue($enhancer_plugin, $entity_type, $bundle, $entity_id) {
+  $queue = DrupalQueue::get($enhancer_plugin);
+  $queue->createItem([
+    'enhancer_plugin' => $enhancer_plugin,
+    'entity_type' => $entity_type,
+    'bundle' => $bundle,
+    'entity_id' => $entity_id,
+  ]);
+}
+
+/**
+ * Return the Feed importer id of the Feed source from the feed nid.
+ *
+ * @param int $feed_nid
+ *   Node ID of the Feed source.
+ *
+ * @return mixed
+ *   The ID of the Feed Import, or FALSE, if no match.
+ */
+function _feeds_enhancer_get_feed_importer_of_feeds_source_from_feed_nid($feed_nid) {
+  return db_select('feeds_source', 'fs')
+    ->condition('feed_nid', $feed_nid)
+    ->fields('fs', ['id'])
+    ->execute()
+    ->fetchField();
+}

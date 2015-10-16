@@ -1,0 +1,12 @@
+name = Feed Enhancer
+description = Feed Enhancer API and plugin collection.
+core = 7.x
+package = Feed Enhancer
+
+dependencies[] = entity
+dependencies[] = feeds
+
+files[] = includes/feed_enhancer_entity.inc
+files[] = includes/feed_item_enhancer_plugin.inc
+files[] = includes/feed_item_enhancer_plugin_stanbol.inc
+files[] = includes/feed_item_enhancer_plugin_full_content.inc

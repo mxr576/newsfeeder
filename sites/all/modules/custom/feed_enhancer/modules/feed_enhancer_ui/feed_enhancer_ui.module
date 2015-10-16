@@ -1,0 +1,326 @@
+<?php
+/**
+ * @file
+ * Module file for Feed Enhancer UI.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function feed_enhancer_ui_menu() {
+  $items = [];
+
+  $items['admin/structure/feeds/%feeds_importer/feed-enhancer'] = [
+    'title' => 'Feed enhancer',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => [
+      'feed_enhancer_ui_feed_enhancer_settings_form',
+      3,
+    ],
+    'access arguments' => ['administer feeds'],
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+  ];
+
+  $items['node/%node/feed-enhancer'] = [
+    'title' => 'Feed Enhancer',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => [
+      'feed_enhancer_ui_feed_enhancer_feed_source_settings_form',
+      1,
+    ],
+    'access callback' => 'feed_enhancer_ui_feed_enhancer_feed_source_settings_form_access',
+    'access arguments' => [1],
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  ];
+
+  return $items;
+}
+
+/**
+ * Custom menu access callback for enhancer tabs on Feeds sources.
+ *
+ * @param \stdClass $node
+ *   Feed source node object.
+ *
+ * @return bool
+ *   TRUE, if this node is attached to a Feed Source and the user has access
+ *   to Administer feeds.
+ */
+function feed_enhancer_ui_feed_enhancer_feed_source_settings_form_access(stdClass $node) {
+  return feeds_get_importer_id($node->type) && user_access('administer feeds');
+}
+
+/**
+ * Implements hook_theme().
+ */
+function feed_enhancer_ui_theme() {
+  $return = [];
+
+  $return['feed_enhancer_ui_settings_item_order_tabledrag'] = [
+    'render element' => 'element',
+  ];
+
+  return $return;
+}
+
+/**
+ * Settings form for Feeds Source Enhancers settings.
+ *
+ * @param array $form
+ *   Form array.
+ * @param array $form_state
+ *   Form state array.
+ * @param \stdClass $feed_source_node
+ *   Feed source node object.
+ */
+function feed_enhancer_ui_feed_enhancer_feed_source_settings_form(array $form, array &$form_state, stdClass $feed_source_node) {
+  $importer_id = feeds_get_importer_id($feed_source_node->type);
+  $feeds_source = feeds_source($importer_id, $feed_source_node->nid);
+  $form['#feed_source_node'] = $feed_source_node;
+  $form += feed_enhancer_ui_feed_enhancer_settings_form($form, $form_state, $feeds_source);
+  return $form;
+}
+
+/**
+ * Validation callback for Feeds Source Enhancer settings forms.
+ */
+function feed_enhancer_ui_feed_enhancer_feed_source_settings_form_validate($form, &$form_state) {
+  feed_enhancer_ui_feed_enhancer_settings_form_validate($form, $form_state);
+}
+
+/**
+ * Submit handler for Feeds Source Enhancer settings forms.
+ */
+function feed_enhancer_ui_feed_enhancer_feed_source_settings_form_submit($form, &$form_state) {
+  feed_enhancer_ui_feed_enhancer_settings_form_submit($form, $form_state);
+}
+
+/**
+ * Settings form for administer Feed Enhancer settings of the FeedsConfigurable.
+ *
+ * @param array $form
+ *   Form array.
+ * @param array $form_state
+ *   Form state array.
+ * @param \FeedsConfigurable $feeds_configurable
+ *   FeedsConfigurable object, either FeedsImporter or FeedsSource.
+ */
+function feed_enhancer_ui_feed_enhancer_settings_form(array $form, array &$form_state, FeedsConfigurable $feeds_configurable) {
+  $form['#tree'] = TRUE;
+  $form['#attached']['js'][] = drupal_get_path('module', 'feed_enhancer_ui') . '/js/feed_enhancer_ui.js';
+  $form['#enhancer_objects'] = [];
+  $form['#feeds_configurable'] = $feeds_configurable;
+  $form['#feed_enhancer'] = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feeds_configurable);
+
+  // Get the available enhancer plugins, validate them and store them
+  // for later use.
+  $enhancer_plugins = feed_enhancer_feed_enhancer_plugin_info();
+  foreach ($enhancer_plugins as $name => $enhancer) {
+    $settings = ($form['#feed_enhancer']) ? $form['#feed_enhancer']->getConfig() : [];
+    if (class_exists($enhancer['class'])) {
+      if (!isset($settings[$name])) {
+        $settings[$name] = [];
+      }
+      $form['#enhancer_objects'][$name] = new $enhancer['class']($feeds_configurable, $name, $settings[$name]);
+
+      if (!($form['#enhancer_objects'][$name] instanceof FeedItemEnhancerPluginPluginInterface)) {
+        watchdog('feed_enhancer', 'Enhancer @callback callback specifies illegal callback class @class.', [
+          '@callback' => $name,
+          '@class' => $enhancer['class'],
+        ], WATCHDOG_WARNING);
+        unset($form['#enhancer_objects'][$name]);
+        continue;
+      }
+    }
+  }
+
+  $form['enhancers'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Enhancers'),
+    '#description' => t('Select the enhancers that will be executed on each feed items, and specify their processing order.'),
+    '#collapsible' => TRUE,
+  ];
+
+  // Enhancers plugin statuses.
+  $form['enhancers']['status'] = [
+    '#type' => 'item',
+    '#title' => t('Enabled enhancers'),
+    '#prefix' => '<div class="feed-enhancers-status-wrapper">',
+    '#suffix' => '</div>',
+  ];
+
+  foreach ($enhancer_plugins as $name => $enhancer) {
+    $settings = $form['#enhancer_objects'][$name]->getSettings();
+    $form['enhancers']['status'][$name] = [
+      '#type' => 'checkbox',
+      '#title' => $enhancer['name'],
+      '#default_value' => isset($settings['status']) ? $settings['status'] : FALSE,
+      '#parents' => ['enhancers', $name, 'status'],
+      '#description' => $enhancer['description'],
+      '#weight' => isset($settings['weight']) ? $settings['weight'] : $enhancer['weight'],
+    ];
+  }
+
+  // Enhancer plugins order (tabledrag).
+  $form['enhancers']['order'] = [
+    '#type' => 'item',
+    '#title' => t('Enhancers processing order'),
+    '#theme' => 'feed_enhancer_ui_settings_item_order_tabledrag',
+    '#table_id' => 'feed-enhancers-order-table',
+  ];
+
+  foreach ($enhancer_plugins as $name => $enhancer) {
+    $settings = $form['#enhancer_objects'][$name]->getSettings();
+    $form['enhancers']['order'][$name]['item'] = [
+      '#markup' => $enhancer['name'],
+    ];
+    $form['enhancers']['order'][$name]['weight'] = [
+      '#type' => 'weight',
+      '#delta' => 50,
+      '#default_value' => isset($settings['weight']) ? $settings['weight'] : $enhancer['weight'],
+      '#parents' => ['enhancers', $name, 'weight'],
+    ];
+    $form['enhancers']['order'][$name]['#weight'] = $form['enhancers']['order'][$name]['weight']['#default_value'];
+  }
+
+  // Enhancer plugin settings.
+  $form['enhancers']['settings_title'] = [
+    '#type' => 'item',
+    '#title' => t('Enhancer settings'),
+  ];
+  $form['enhancers']['settings'] = [
+    '#type' => 'vertical_tabs',
+  ];
+
+  // Dynamically load all enhancer plugin's configuration forms.
+  foreach ($enhancer_plugins as $name => $enhancer) {
+    $settings_form = $form['#enhancer_objects'][$name]->configurationForm();
+    if (!empty($settings_form)) {
+      $form['enhancers']['settings'][$name] = [
+        '#type' => 'fieldset',
+        '#title' => $enhancer['name'],
+        '#parents' => ['enhancers', $name, 'settings'],
+        '#weight' => isset($settings['weight']) ? $settings['weight'] : $enhancer['weight'],
+      ];
+      $form['enhancers']['settings'][$name] += $settings_form;
+    }
+  }
+
+  $form['actions'] = ['#type' => 'actions'];
+  $form['actions']['submit'] = [
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
+  ];
+
+  return $form;
+}
+
+/**
+ * Validation callback for Feed Enhancer settings forms.
+ *
+ * @see feed_enhancer_ui_feed_enhancer_settings_form()
+ */
+function feed_enhancer_ui_feed_enhancer_settings_form_validate($form, &$form_state) {
+  // Call validation functions.
+  foreach ($form['#enhancer_objects'] as $name => $callback) {
+    // Call the enhancer plugin's own validation callback if the plugin
+    // enabled and configured.
+    if (isset($form['enhancers']['settings'][$name]) && $form['enhancers']['status'][$name]['#value'] && isset($form_state['values']['enhancers'][$name]['settings'])) {
+      $callback->configurationFormValidate($form['enhancers']['settings'][$name], $form_state, $form_state['values']['enhancers'][$name]['settings']);
+    }
+  }
+}
+
+/**
+ * Submit handler for Feed Enhancer settings forms.
+ *
+ * @see feed_enhancer_ui_feed_enhancer_settings_form()
+ */
+function feed_enhancer_ui_feed_enhancer_settings_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+  // Remove unnecessary information.
+  unset($values['enhancers']['settings']);
+
+  // Store enhancers settings.
+  array_walk($form['#enhancer_objects'], function ($enhancer, $name) use ($form, $form_state, &$values) {
+    $enhancer_form = isset($form['enhancers']['settings'][$name]) ? $form['enhancers']['settings'][$name] : [];
+    // If the plugin is enabled.
+    if ($values['enhancers'][$name]['status']) {
+      // Ensure the settings array is exists.
+      $values['enhancers'][$name] += ['settings' => []];
+      // Flatten the enhancer settings.
+      if (!empty($values['enhancers'][$name]['settings'])) {
+        $values['enhancers'][$name] += $values['enhancers'][$name]['settings'];
+        unset($values['enhancers'][$name]['settings']);
+      }
+
+      // Call the enhancer plugin's own submit handler.
+      $values['enhancers'][$name]['settings'] = $enhancer->configurationFormSubmit($enhancer_form, $form_state, $values['enhancers'][$name]);
+    }
+    else {
+      unset($values['enhancers'][$name]);
+    }
+  });
+
+  // Sort the enhancer plugins by their weights here.
+  uasort($values['enhancers'], 'feed_enhancer_ui_plugin_sort');
+
+  // There were not any Feed Enhancer belonged to this FeedsConfigurable, so
+  // create a new one.
+  if (!$form['#feed_enhancer']) {
+    $form['#feed_enhancer'] = feed_enhancer_create_feed_enhancer_for_feeds_configurable($form['#feeds_configurable'], $values['enhancers']);
+  }
+  // Update the existing Feed Enhancer.
+  else {
+    $form['#feed_enhancer']->config = $values['enhancers'];
+    feed_enhancer_feed_enhancer_save($form['#feed_enhancer']);
+  }
+}
+
+/**
+ * Sort enhancers and categorization plugins by its weight attribute.
+ *
+ * @see element_sort()
+ */
+function feed_enhancer_ui_plugin_sort($a, $b) {
+  $a_weight = (is_array($a) && isset($a['weight'])) ? $a['weight'] : 0;
+  $b_weight = (is_array($b) && isset($b['weight'])) ? $b['weight'] : 0;
+  if ($a_weight == $b_weight) {
+    return 0;
+  }
+
+  return ($a_weight < $b_weight) ? -1 : 1;
+}
+
+/**
+ * Returns HTML for a Feed Enhancers plugins order form.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - element: A render element representing the form.
+ */
+function theme_feed_enhancer_ui_settings_item_order_tabledrag(array $variables) {
+  $element = $variables['element'];
+
+  $rows = [];
+  foreach (element_children($element, TRUE) as $name) {
+    $element[$name]['weight']['#attributes']['class'][] = 'feed-settings-item-weight';
+    $rows[] = [
+      'data' => [
+        drupal_render($element[$name]['item']),
+        drupal_render($element[$name]['weight']),
+      ],
+      'class' => ['draggable'],
+    ];
+  }
+  $output = drupal_render_children($element);
+  $output .= theme('table', [
+    'rows' => $rows,
+    'attributes' => ['id' => $element['#table_id']],
+  ]);
+  drupal_add_tabledrag($element['#table_id'], 'order', 'sibling', 'feed-settings-item-weight');
+
+  return $output;
+}
