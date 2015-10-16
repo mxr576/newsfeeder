@@ -1,0 +1,6 @@
+name = Stanbol Enhancer
+description = Provides integration to Apache Stanbol's Enhancer module.
+package = Stanbol Enhancer
+core = 7.x
+
+dependencies[] = entity

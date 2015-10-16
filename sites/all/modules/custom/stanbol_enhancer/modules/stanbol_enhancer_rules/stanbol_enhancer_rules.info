@@ -1,0 +1,7 @@
+name = Stanbol Enhancer Rules
+description = Provides Rules integration for the Stanbol Enhancer.
+package = Stanbol Enhancer
+core = 7.x
+
+dependencies[] = rules
+dependencies[] = stanbol_enhancer

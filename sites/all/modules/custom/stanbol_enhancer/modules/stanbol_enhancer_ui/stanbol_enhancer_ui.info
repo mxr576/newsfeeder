@@ -1,0 +1,8 @@
+name = Stanbol Enhancer UI
+description = Administration UI for Stanbol Enhancer settings.
+package = Stanbol Enhancer
+core = 7.x
+
+configure = admin/config/services/stanbol-enhancer
+
+dependencies[] = stanbol_enhancer
