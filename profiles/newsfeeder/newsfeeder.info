@@ -1,0 +1,21 @@
+name = Newsfeeder
+description = Custom intall profile for the Newsfeeder distribution.
+core = 7.x
+exclusive = TRUE
+
+dependencies[] = block
+dependencies[] = dblog
+dependencies[] = node
+dependencies[] = image
+dependencies[] = list
+dependencies[] = menu
+dependencies[] = number
+dependencies[] = options
+dependencies[] = path
+dependencies[] = taxonomy
+dependencies[] = field_ui
+dependencies[] = adminimal_admin_menu
+dependencies[] = features
+dependencies[] = diff
+dependencies[] = strongarm
+dependencies[] = module_filter

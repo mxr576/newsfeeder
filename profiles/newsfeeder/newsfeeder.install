@@ -1,0 +1,74 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the minimal installation profile.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Performs actions to set up the site for this profile.
+ */
+function newsfeeder_install() {
+  $default_theme = variable_get('theme_default', 'responsive_bartik');
+  variable_set('admin_theme', 'responsive_bartik');
+  variable_set('admin_menu_cache_client', FALSE);
+  // Set JPEG quality.
+  variable_set('image_jpeg_quality', 100);
+
+  // Enable some standard blocks.
+  $values = [
+    [
+      'module' => 'system',
+      'delta' => 'main',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'content',
+      'pages' => '',
+      'cache' => -1,
+    ],
+    [
+      'module' => 'user',
+      'delta' => 'login',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'sidebar_first',
+      'pages' => '',
+      'cache' => -1,
+    ],
+    [
+      'module' => 'system',
+      'delta' => 'navigation',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'sidebar_first',
+      'pages' => '',
+      'cache' => -1,
+    ],
+    [
+      'module' => 'system',
+      'delta' => 'management',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 1,
+      'region' => 'sidebar_first',
+      'pages' => '',
+      'cache' => -1,
+    ],
+  ];
+  $query = db_insert('block')->fields(['module', 'delta', 'theme', 'status', 'weight', 'region', 'pages', 'cache']);
+  foreach ($values as $record) {
+    $query->values($record);
+  }
+  $query->execute();
+
+  // Disallow visitor account creation. Only admin could create new users.
+  variable_set('user_register', USER_REGISTER_ADMINISTRATORS_ONLY);
+
+  // Enable default permissions for system roles.
+  user_role_grant_permissions(DRUPAL_ANONYMOUS_RID, ['access content']);
+  user_role_grant_permissions(DRUPAL_AUTHENTICATED_RID, ['access content']);
+}
