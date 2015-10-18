@@ -1,0 +1,9 @@
+name = Context: Feeds
+description = Provides Feeds conditions for the Context module.
+package = Context
+core = 7.x
+dependencies[] = context
+dependencies[] = feeds
+
+files[] = plugins/context_feeds_feeds_source_node.inc
+files[] = plugins/context_feeds_feed_item_node.inc
