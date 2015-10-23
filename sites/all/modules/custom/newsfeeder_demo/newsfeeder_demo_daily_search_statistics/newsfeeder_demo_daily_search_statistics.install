@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function newsfeeder_demo_daily_search_statistics_install() {
+  $path = NEWSFEEDER_DEMO_DAILY_SEARCH_STATISTICS_STATS_FOLDER;
+  if (!file_prepare_directory($path, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    throw new Exception('Directory for storing the generated files can not be created!');
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function newsfeeder_demo_daily_search_statistics_uninstall() {
+  if (!file_unmanaged_delete_recursive(NEWSFEEDER_DEMO_DAILY_SEARCH_STATISTICS_STATS_FOLDER)) {
+    watchdog('newsfeeder_demo_daily_search_statistics', 'Statistics directory can not be deleted!', [], WATCHDOG_ERROR);
+  }
+}

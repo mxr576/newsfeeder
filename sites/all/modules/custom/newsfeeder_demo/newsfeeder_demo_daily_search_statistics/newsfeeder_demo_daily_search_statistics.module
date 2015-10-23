@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Demo: Daily search statistics.
+ */
+
+define('NEWSFEEDER_DEMO_DAILY_SEARCH_STATISTICS_STATS_FOLDER', 'public://nf_demo_daily_search_stats');
+
+/**
+ * Run a query on Solr which calculates the daily search results.
+ *
+ * @param string $search_index
+ *   Name of the search index.
+ * @param string $from
+ *   Valid date string, the beginning of the interval.
+ * @param string $to
+ *   Valid date string, the end of the interval.
+ * @param string $keyword
+ *   Search keyword (q parameter for Solr).
+ * @param array $filters
+ *   Fq parameters. @see newsfeeder_solr_queries_execute_query().
+ * @param array $params
+ *   Additional query parameters. @see newsfeeder_solr_queries_execute_query().
+ *
+ * @return array
+ *   An associative array on success, where the keys are the dates in
+ *   the given interval (the dates Solr's ISO-8601 formatted) and the values
+ *   are the number of results for the given search; else and empty array.
+ */
+function newsfeeder_demo_daily_search_statistics_get_the_number_of_daily_search_results($search_index, $from, $to, $keyword = '', array $filters = [], array $params = []) {
+  $from = newsfeeder_solr_queries_convert_date_to_solr_date_format($from);
+  $to = newsfeeder_solr_queries_convert_date_to_solr_date_format($to);
+  $params += [
+    'ds_created' => '["' . $from . '" TO *]',
+    'ds_created_1' => '[* TO "' . $to . '"]',
+    'facet.range' => 'ds_created',
+    'facet.range.start' => $from,
+    'facet.range.end' => $to,
+    'facet.range.gap' => '+1DAYS',
+    'facet' => 'true',
+    'facet.sort' => 'count',
+    // These were disabled to 0 results will be returned too.
+    // 'facet.mincount' => 1,
+    // 'facet.missing' => 'false',
+    'rows' => 0,
+  ];
+
+  $filters += [
+    'bs_status' => ['value' => 'true'],
+  ];
+
+  $response = newsfeeder_solr_queries_execute_query($search_index, $keyword, $filters, $params);
+  if (isset($response->facet_counts->facet_ranges->ds_created->counts)) {
+    return (array) $response->facet_counts->facet_ranges->ds_created->counts;
+  }
+
+  return [];
+}
+
+/**
+ * Returns daily stat. for each keywords and filters, plus aggregate results.
+ *
+ * This function calculates the daily search results for each keyword and
+ * filter parameters individually, calculates the keywords' aggregated results,
+ * the filters' aggregated results and the keywords and filters aggregated daily
+ * results for the given time interval.
+ * This function probably could cause max execution time errors for bigger
+ * queries, that is why if it is possible, it is recommended to run a similar
+ * query in batch. Check batch.inc file and the csv export function.
+ *
+ * @param string $search_index
+ *   Name of the search index.
+ * @param string $from
+ *   Valid date string, the beginning of the interval.
+ * @param string $to
+ *   Valid date string, the end of the interval.
+ * @param array $keywords
+ *   Array of keywords (q parameters for Solr).
+ * @param array $filters
+ *   Fq parameters. @see newsfeeder_solr_queries_execute_query().
+ * @param array $params
+ *   Additional query parameters. @see newsfeeder_solr_queries_execute_query().
+ *
+ * @return array
+ *   An associative array, where the possible keys are:
+ *   - keywords: if any keyword provided, then this contains the results for
+ *     each keyword parameter.
+ *   - keywords-aggregated: Contains the result of the query which executed
+ *     with all keyword parameters applied.
+ *   - filters: if any filter provided, then this contains the results for
+ *     each filter parameter.
+ *   - filters-aggregated: Contains the result of the query which executed
+ *     with all filter parameters applied.
+ *   - keywords-filters-aggregated: if both keyword and filter parameters
+ *     provided, then this contains the result of the query which executed
+ *     with all keyword and filter parameters applied.
+ */
+function newsfeeder_demo_daily_search_statistics_get_individiual_and_aggrageted_search_results_for_all_search_parameters($search_index, $from, $to, array $keywords = [], array $filters = [], array $params = []) {
+  $data = [];
+
+  foreach ($keywords as $keyword) {
+    $data['keywords'][$keyword] = newsfeeder_demo_solr_queries_daily_results_count_get_the_number_of_daily_results_in_this_interval($search_index, $from, $to, $keyword, $params);
+  }
+  if (!empty($keywords)) {
+    $data['keywords-aggregated'] = newsfeeder_demo_solr_queries_daily_results_count_get_the_number_of_daily_results_in_this_interval($search_index, $from, $to, implode(' ', $keywords), $params);
+  }
+  foreach ($filters as $filter => $value) {
+    $data['filters'][$filter] = newsfeeder_demo_solr_queries_daily_results_count_get_the_number_of_daily_results_in_this_interval($search_index, $from, $to, '', $params, [$filter => $value]);;
+  }
+  if (!empty($filters)) {
+    $data['filters-aggregated'] = newsfeeder_demo_solr_queries_daily_results_count_get_the_number_of_daily_results_in_this_interval($search_index, $from, $to, '', $params, $filters);
+  }
+  if (!empty($keywords) && !empty($filters)) {
+    $data['keywords-filters-aggregated'] = newsfeeder_demo_solr_queries_daily_results_count_get_the_number_of_daily_results_in_this_interval($search_index, $from, $to, implode(' ', $keywords), $params, $filters);
+  }
+
+  return $data;
+}
+
+
+/**
+ * Returns the definition of the batch, which generates the csv reports.
+ *
+ * This function returns an array, which contains the batch definition of the
+ * daily search statistics csv file export generation process for the
+ * batch_set() function.
+ *
+ * @param string $search_index
+ *   Name of the search index.
+ * @param string $from
+ *   Valid date string, the beginning of the interval.
+ * @param string $to
+ *   Valid date string, the end of the interval.
+ * @param array $keywords
+ *   Array of keywords (q parameters for Solr).
+ * @param array $filters
+ *   Fq parameters. @see newsfeeder_solr_queries_execute_query().
+ * @param array $params
+ *   Additional query parameters. @see newsfeeder_solr_queries_execute_query().
+ *
+ * @return array
+ *   Array which contains the batch definition.
+ *
+ * @throws \Exception
+ *   If the folder, which will store the generated statistics files does
+ *   not exists, then drop an exception, before the batch process could start.
+ */
+//function newsfeeder_demo_daily_search_statistics_generate_csv_report_batch($search_index = 'rss_feed_item_search', $from = '2015-01-01 00:00', $to = '2015-07-31 23:59:59', array $keywords = [], array $params = [], array $filters = ['im_field_mediawatch_topics_307' => ['value' => 307], 'im_field_mediawatch_topics_205' => ['value' => 205]]) {
+function newsfeeder_demo_daily_search_statistics_generate_csv_report_batch($search_index = 'rss_feed_item_search', $from = '2015-01-01 00:00', $to = '2015-07-31 23:59:59', array $keywords = ['security', 'obama', 'migrants'], array $params = [], array $filters = ['im_field_mediawatch_topics_307' => ['value' => 307], 'im_field_mediawatch_topics_205' => ['value' => 205]]) {
+//function newsfeeder_demo_daily_search_statistics_generate_csv_report_batch($search_index, $from, $to, array $keywords, array $filters = [], array $params = []) {
+  $path = NEWSFEEDER_DEMO_DAILY_SEARCH_STATISTICS_STATS_FOLDER;
+  // Validate if the folder of the generated files is exists and writable.
+  if (!file_prepare_directory($path, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS) || !is_dir($path)) {
+    throw new Exception('Directory for storing generated files does not exits and it can not be created!');
+  }
+
+  $batch = [
+    'title' => t('Exporting daily search results statistics report between @from and @to', ['@from' => format_date(strtotime($from), 'custom', 'm/d/Y'), '@to' => format_date(strtotime($to), 'custom', 'm/d/Y')]),
+    'finished' => '_newsfeeder_demo_daily_search_statistics_get_individual_and_aggregated_keyword_search_results_batch_finished',
+    'progress_message' => t('Processed @current out of @total tasks.'),
+    'error_message' => t('The export process has encountered a problem. Please try again!'),
+    'file' => drupal_get_path('module', 'newsfeeder_demo_daily_search_statistics') . '/newsfeeder_demo_daily_search_statistics.batch.inc',
+  ];
+
+  $batch['operations'] = [];
+
+  // Only add the necessary callbacks to the operations.
+  if (!empty($keywords) || !empty($filters)) {
+    if (!empty($keywords)) {
+      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_get_individual_and_aggregated_keyword_search_results_batch_operation', [$search_index, $from, $to, $keywords, $params]]]);
+      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_export_merge_keyword_search_results_batch_operation', []]]);
+
+    }
+    if (!empty($filters)) {
+      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_get_individual_and_aggregated_filter_search_results_batch_operation', [$search_index, $from, $to, $filters, $params]]]);
+      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_export_merge_filter_search_results_batch_operation', []]]);
+    }
+
+    if (!empty($keywords) && !empty($filters)) {
+      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_get_aggregated_keywords_and_filters_search_results_batch_operation', [$search_index, $from, $to, $keywords, $filters, $params]]]);
+      $batch['operations'] += array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_export_merge_aggregated_keywords_and_filters_search_results_batch_operation', []]]);
+    }
+
+    $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_export_generate_date_columns_batch_operation', ['m/d/Y']]]);
+    $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_demo_daily_search_statistics_export_write_results_to_file_batch_operation', [$from, $to, $keywords, $filters]]]);
+
+  }
+
+  return $batch;
+}
