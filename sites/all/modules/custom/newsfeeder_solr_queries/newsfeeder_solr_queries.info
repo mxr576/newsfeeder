@@ -1,0 +1,6 @@
+name = NewsFeeder Solr Queries
+description = Run queries on Solr with the help of the Apache Solr module.
+package = NewsFeeder
+core = 7.x
+
+;dependencies[] = apachesolr

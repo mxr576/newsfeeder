@@ -1,0 +1,131 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Solr Queries.
+ */
+
+/**
+ * Helper function which builds a basic query object.
+ *
+ * @param string $search_index
+ *   Name of the Solr search index which will be queried.
+ *
+ * @return \DrupalSolrQueryInterface
+ *   Query object.
+ */
+function newsfeeder_solr_queries_base_query_object($search_index) {
+  // Use Apache Solr module's features without enable it.
+  module_load_include('inc', 'apachesolr', 'apachesolr.interface');
+  module_load_include('php', 'apachesolr', 'Drupal_Apache_Solr_Service');
+  module_load_include('module', 'apachesolr');
+  // Load the Solr host address from the Search API's settings, if this
+  // information exists.
+  $solr_host = variable_get('solr_search_api_scheme', 'http') . '://' . variable_get('solr_search_api_host', 'localhost') . ':' . variable_get('solr_search_api_port', 8983) . variable_get('solr_search_api_path', '\\/solr');
+  $solr = new DrupalApacheSolrService($solr_host);
+  $query = apachesolr_drupal_query('newsfeeder_statistics_query', [], '', '', $solr);
+  $query->addFilter('index_id', $search_index);
+  $query->addParam('rows', 10);
+  // Pass site's default timezone to ensure the same timezone in Solr queries.
+  $query->addParam('TZ', variable_get('date_default_timezone', 'UTC'));
+  return $query;
+}
+
+/**
+ * Execute a query on the Solr with the help of the Apache Solr module.
+ *
+ * @param string $search_index
+ *   Name of the search index that will be queried.
+ * @param string $keyword
+ *   Search keyword (q parameter for Solr).
+ * @param array $filters
+ *   An associative array of Solr filter (query) parameters.
+ *   Keys should contains the name of the filter field and an autoincrement
+ *   (or unique numeric) suffix to ensure the capability of passing
+ *   multiple fq's for the same field in the same array. Ex:
+ *   [
+ *     'im_field_term_ref_fooo_307' => ['value' => 307],
+ *     'im_field_term_ref_fooo_101' => ['value' => 101],
+ *   ];
+ *   where the 307 and the 101 are the term ids of the
+ *   referenced terms. The value is also an associative array as you can see,
+ *   possible keys are: value, exclude, local.
+ * @param array $params
+ *   Associative array of additional query parameters, where the key is the
+ *   name of the parameter and the value is the value of the parameter.
+ *
+ * @return bool|object
+ *   Return the full response object on success and FALSE if there were any
+ *   error, while the query executed.
+ */
+function newsfeeder_solr_queries_execute_query($search_index, $keyword = '', array $filters = [], array $params = []) {
+  $query = newsfeeder_solr_queries_base_query_object($search_index);
+  if (!empty($params)) {
+    array_walk($params, function ($value, $name) use (&$query) {
+      $name = preg_replace('/(_[0-9]+)$/', '', $name);
+      $query->addParam($name, $value);
+    });
+  }
+  if (!empty($filters)) {
+    array_walk($filters, function ($value, $name) use (&$query) {
+      $name = preg_replace('/(_[0-9]+)$/', '', $name);
+      // Ensure these values exists in the array.
+      $value += [
+        'exclude' => FALSE,
+        'local' => '',
+      ];
+      $query->addFilter($name, $value['value'], $value['exclude'], $value['local']);
+    });
+  }
+  try {
+    $response = $query->search($keyword);
+    if ($response->code == 200) {
+      return $response;
+    }
+    return FALSE;
+  }
+  catch (Exception $e) {
+    return FALSE;
+  }
+}
+
+/**
+ * Helper function which parse the Solr's ISO-8601 UTC date to a unix timestamp.
+ *
+ * @param string $iso8601
+ *   ISO-8601 formatted date string, with UTC timezone.
+ *
+ * @return int
+ *   Unix timestamp.
+ *
+ * @see http://lucene.apache.org/solr/4_4_0/solr-core/org/apache/solr/schema/DateField.html
+ */
+function newsfeeder_solr_queries_parse_solr_iso_to_timestamp($iso8601) {
+  $date = new DateTime($iso8601);
+  $date->setTimezone(new DateTimeZone('UTC'));
+  return $date->getTimestamp();
+}
+
+/**
+ * Helper function which converts a valid date sting to Solr's date format.
+ *
+ * Solr's default date format is ISO-8601 formatted UTC string. This function
+ * also ensure that the differences between the site's current timezone and the
+ * Solr's UTC timezone will be handled properly.
+ *
+ * @param int $datestring
+ *   Valid date string.
+ *
+ * @return string
+ *   ISO-8601 formatted string.
+ */
+function newsfeeder_solr_queries_convert_date_to_solr_date_format($datestring) {
+  module_load_include('module', 'apachesolr');
+  $site_timezone = variable_get('date_default_timezone', 'UTC');
+  if ($site_timezone != 'UTC') {
+    $date = new DateTime($datestring, new DateTimeZone($site_timezone));
+    $date->setTimezone(new DateTimeZone('UTC'));
+    return apachesolr_date_iso($date->getTimestamp());
+  }
+  return apachesolr_date_iso($datestring);
+}
