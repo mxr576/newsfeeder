@@ -62,6 +62,16 @@ class StanbolFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
   }
 
   /**
+   * @inheritDoc
+   */
+  public function configurationFormSubmit(array $form, array &$form_state, array &$values) {
+    // Clean out empty field values, no need to save them.
+    $values['stanbol_enhancer']['mapping'] = array_filter($values['stanbol_enhancer']['mapping']);
+    return parent::configurationFormSubmit($form, $form_state, $values);
+  }
+
+
+  /**
    * {@inheritdoc}
    */
   public static function processFeedItem(EntityMetadataWrapper $feed_item_wrapper, array $settings) {

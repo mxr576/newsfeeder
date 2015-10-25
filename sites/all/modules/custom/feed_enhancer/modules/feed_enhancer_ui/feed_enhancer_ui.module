@@ -257,7 +257,7 @@ function feed_enhancer_ui_feed_enhancer_settings_form_submit($form, &$form_state
       }
 
       // Call the enhancer plugin's own submit handler.
-      $values['enhancers'][$name]['settings'] = $enhancer->configurationFormSubmit($enhancer_form, $form_state, $values['enhancers'][$name]);
+      $values['enhancers'][$name] = $enhancer->configurationFormSubmit($enhancer_form, $form_state, $values['enhancers'][$name]);
     }
     else {
       unset($values['enhancers'][$name]);

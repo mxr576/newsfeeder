@@ -82,6 +82,7 @@ function feed_enhancer_feeds_source_enhancer_entity_label_callback($entity, $ent
  * Implements hook_feed_enhancer_plugin_info().
  */
 function feed_enhancer_feed_enhancer_enhancer_plugin_info() {
+  $plugins = [];
   $plugins['feeder_enhancer_api_full_content_enhancer'] = [
     'name' => t('Full Content Enhancer'),
     'description' => t("Retrieve the full content of the feed item. This could be useful, because the feed items usually contains only a trimmed version of the original page's content."),

@@ -109,7 +109,7 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
    * {@inheritdoc}
    */
   public static function processFeedItem(EntityMetadataWrapper $feed_item_wrapper, array $settings) {
-    // Full Content does not assigned to any field.
+    // Full Content was not assigned to any field.
     if (empty($settings['properties']['full_content'])) {
       return TRUE;
     }
