@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the NewsFeeder Demo: CTs feature.
+ */
+
+include_once 'newsfeeder_demo_cts.features.inc';
