@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Module file for the Leaflet: Heatmap module.
+ */
+
+/**
+ * Implements hook_libraries_info().
+ */
+function leaflet_heatmap_libraries_info() {
+  $libraries['leaflet_heatmap'] = [
+    // Only used in administrative UI of Libraries API.
+    'name' => 'Leaflet Heatmap',
+    'vendor url' => 'http://www.patrick-wied.at/static/heatmapjs/',
+    'download url' => 'https://github.com/pa7/heatmap.js/archive/master.zip',
+    'version arguments' => [
+      'file' => 'package.json',
+      'pattern' => '/\s+"version": "([0-9.]+)"/',
+    ],
+    'files' => [
+      'js' => [
+        'build/heatmap.min.js' => [
+          'type' => 'file',
+          'group' => JS_LIBRARY,
+          'preprocess' => FALSE,
+          'weight' => 1,
+        ],
+        'plugins/leaflet-heatmap.js' => [
+          'type' => 'file',
+          'group' => JS_LIBRARY,
+          'preprocess' => FALSE,
+          'weight' => 2,
+        ],
+      ],
+    ],
+    'integration files' => [
+      'leaflet_heatmap' => [
+        'js' => [
+          'leaflet_heatmap.drupal.js',
+        ],
+      ],
+    ],
+  ];
+
+  return $libraries;
+}
+
+/**
+ * Attach Leaflet and Heatmap.js required client files and build the map.
+ *
+ * @param array $map
+ *   Map definition as returned by leaflet_map_get_info().
+ * @param array $features
+ *   Associative array of map features.
+ * @param string $height
+ *   The height of the map.
+ *
+ * @return array
+ *   A renderable array.
+ */
+function leaflet_heatmap_build_map(array $map, array $features = [], $height = '400px') {
+  $map_id = drupal_html_id('leaflet_heatmap');
+  $build = [
+    '#theme' => 'html_tag',
+    '#tag' => 'div',
+    '#value' => '',
+    '#attributes' => [
+      'id' => $map_id,
+      'style' => 'height: ' . $height,
+    ],
+  ];
+
+  $settings = [
+    'mapId' => $map_id,
+    'map' => $map,
+    'features' => $features,
+  ];
+
+  drupal_alter('leaflet_heatmap_map_prebuild', $settings);
+
+  $build['#attached']['js'][] = [
+    'data' => ['leaflet_heatmap' => [$settings]],
+    'type' => 'setting',
+  ];
+
+  // Load the leaflet and leaflet_heatmap libraries, which includes
+  // their integration files.
+  libraries_load('leaflet');
+  libraries_load('leaflet_heatmap');
+
+  return $build;
+}

@@ -1,0 +1,7 @@
+name = Leaflet: Heatmap
+description = Create heatmaps with the help of the Leaflet library and the heatmap.js plugin.
+package = Leaflet
+core = 7.x
+
+dependencies[] = leaflet
+dependencies[] = libraries
