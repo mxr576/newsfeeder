@@ -1,7 +1,0 @@
-name = NewsFeeder Demo: Daily Search statistics
-description = Generate CSV exportable statistics about daily search results in the given timeframe.
-package = NewsFeeder Demo
-core = 7.x
-
-dependencies[] = newsfeeder_hacks
-dependencies[] = newsfeeder_solr_queries
