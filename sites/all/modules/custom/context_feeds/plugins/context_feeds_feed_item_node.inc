@@ -69,7 +69,7 @@ class context_feeds_feed_item_node extends context_condition {
    */
   function execute($node, $op) {
     // Check, if this node is a Feeds item node.
-    if (feeds_get_feed_nid($node->nid, 'node')) {
+    if (isset($node->nid) && feeds_get_feed_nid($node->nid, 'node')) {
       foreach ($this->get_contexts() as $context) {
         // Check the node form option.
         $options = $this->fetch_from_context($context, 'options');
