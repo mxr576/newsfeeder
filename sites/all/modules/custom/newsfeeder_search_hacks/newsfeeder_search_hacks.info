@@ -1,0 +1,8 @@
+name = NewsFeeder Search Hacks
+description = Contains some hacks and helper functions for the search in NewsFeeder.
+package = NewsFeeder
+core = 7.x
+
+dependencies[] = facetapi
+dependencies[] = search_api
+dependencies[] = search_api_solr

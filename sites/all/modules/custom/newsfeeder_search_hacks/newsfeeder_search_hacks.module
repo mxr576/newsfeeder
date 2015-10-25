@@ -1,0 +1,164 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Search Hacks module.
+ */
+
+/**
+ * Provides default Solr server settings for Search API.
+ *
+ * PLEASE, DO NOT EXPORT SOLR SERVER SETTINGS TO FEATURE, ALL MODIFICATION
+ * SHOULD BE MADE HERE!
+ *
+ * These settings could be overridden from settings.php with these lines:
+ *   $conf['solr_search_api_host'] = 'https://my.search.server';
+ *   $conf['solr_search_api_scheme'] = 'http';
+ *   $conf['solr_search_api_port'] = '8983';
+ *   $conf['solr_search_api_path'] = '\\/sorl';
+ *   $conf['solr_search_api_solr_version'] = 5;
+ *
+ * Implements hook_default_search_api_server().
+ */
+function newsfeeder_search_hacks_default_search_api_server() {
+  $items = [];
+
+  $host = variable_get('solr_search_api_host', 'localhost');
+  $scheme = variable_get('solr_search_api_scheme', 'http');
+  $port = variable_get('solr_search_api_port', '8983');
+  $path = variable_get('solr_search_api_path', '\\/solr/drupal');
+  $version = variable_get('solr_search_api_solr_version', 5);
+
+  $items['master_solr_server'] = entity_import('search_api_server', '{
+    "name" : "Master Solr server",
+    "machine_name" : "master_solr_server",
+    "description" : "",
+    "class" : "search_api_solr_service",
+    "options" : {
+      "clean_ids" : true,
+      "site_hash" : true,
+      "scheme" : "' . $scheme . '",
+      "host" : "' . $host . '",
+      "port" : "' . $port . '",
+      "path" : "' . $path . '",
+      "http_user" : "",
+      "http_pass" : "",
+      "excerpt" : 1,
+      "retrieve_data" : 1,
+      "highlight_data" : 1,
+      "skip_schema_check" : 0,
+      "solr_version" : "' . $version . '",
+      "http_method" : "AUTO"
+    },
+    "enabled" : "1"
+ }');
+
+  return $items;
+}
+
+/**
+ * Return the given query parameter's value, if set.
+ *
+ * @param string $identifier
+ *   Identifier of the query parameter.
+ * @param array $query_parameters
+ *   Array of query parameters. Default is the current query parameters from
+ *   the url.
+ *
+ * @return string
+ *   Value of the query parameter, if set, otherwise an empty string.
+ */
+function newsfeeder_search_hacks_get_value_from_query_parameters($identifier, array $query_parameters = []) {
+  if (empty($query_parameters)) {
+    $query_parameters = drupal_get_query_parameters();
+  }
+  return isset($query_parameters[$identifier]) ? $query_parameters[$identifier] : '';
+}
+
+/**
+ * Return the given date query parameter's value, if set.
+ *
+ * @param string $identifier
+ *   Identifier of the date field query parameter.
+ * @param array $query_parameters
+ *   Array of query parameters. Default is the current query parameters from
+ *   the url.
+ *
+ * @return string
+ *   Value of the date query parameter, if set, otherwise an empty string.
+ */
+function newsfeeder_search_hacks_get_date_field_value_from_query_parameters($identifier, array $query_parameters = []) {
+  if (empty($query_parameters)) {
+    $query_parameters = drupal_get_query_parameters();
+  }
+  return isset($query_parameters[$identifier]['date']) ? $query_parameters[$identifier]['date'] : '';
+}
+
+/**
+ * Parse the keywords from the current query string.
+ *
+ * @param array $query_params
+ *   Array of query parameters. Default is the current query parameters from
+ *   the url.
+ * @param string $keywords_identifier
+ *   Name of key in the query parameters which contains the keywords.
+ *
+ * @return array
+ *   Array of keywords if any, else an empty array.
+ */
+function newsfeeder_search_hacks_get_keywords_from_query_parameters(array $query_params = [], $keywords_identifier = 'keywords') {
+  $keywords = [];
+  if (empty($query_params)) {
+    $query_params = drupal_get_query_parameters();
+    if (!empty($query_params[$keywords_identifier])) {
+      // preg_match_all('/(?<!")\b\w+\b|(?<=")\b[^"]+/', $queryparams[$keywords_identifier], $keywords, PREG_PATTERN_ORDER);
+      // return $keywords[0];
+      return str_getcsv($query_params[$keywords_identifier], ' ', '"');
+    }
+  }
+
+  return $keywords;
+}
+
+/**
+ * Get all active facet filters of all existing Searcher.
+ *
+ * @return array
+ *   Associative array, where the keys are the searchers' names and the values
+ *   are the active a facet filters.
+ */
+function newsfeeder_search_hacks_get_active_facet_filters_grouped_by_searchers() {
+  $facets = &drupal_static(__FUNCTION__, []);
+  if (empty($facets)) {
+    $searchers = facetapi_get_searcher_info();
+    $facets = array_map(function ($searcher) {
+      return newsfeeder_search_hacks_get_active_facet_filters_of_searcher_grouped_by_filter_names($searcher['name']);
+    }, $searchers);
+  }
+  return $facets;
+}
+
+/**
+ * Get active facet filters of the searcher plugins.
+ *
+ * @param string $searcher
+ *   Name of the Search API searcher. Ex.: search_api@article_search.
+ *
+ * @return array
+ *   An associative array of the active filters where the keys are the
+ *   name of the facet filters and the value is the current value of the filter.
+ */
+function newsfeeder_search_hacks_get_active_facet_filters_of_searcher_grouped_by_filter_names($searcher) {
+  $facets = &drupal_static(__FUNCTION__ . '_' . $searcher, []);
+  if (empty($facets)) {
+    if ($facetapi_adapter = facetapi_adapter_load($searcher)) {
+      $active_filters = $facetapi_adapter->getAllActiveItems();
+      if (!empty($active_filters)) {
+        foreach (array_keys($active_filters) as $filter) {
+          $facets[$active_filters[$filter]['field alias']][] = $active_filters[$filter]['value'];
+        }
+      }
+    }
+  }
+  return $facets;
+}
