@@ -527,6 +527,17 @@ function stanbol_enhancer_stanbol_enhancer_result_processor_info() {
     ],
     'value callback' => '_stanbol_enhancer_geolocation_value_callback',
   ];
+  $processors['places_geofield'] = [
+    'label' => t('Places'),
+    'description' => t('Store the identified places in a <a href="@url">Geofield</a> field.', ['@url' => url('http://drupal.org/project/geofield', ['external' => TRUE])]),
+    'type' => 'list<geofield>',
+    'group identifier' => STANBOL_ENHANCER_FIELD_TYPE_PLACE,
+    'processor callback' => '_stanbol_enhancer_places_process_callback',
+    'processor callback settings' => [
+      'round digits' => 2,
+    ],
+    'value callback' => '_stanbol_enhancer_geofield_value_callback',
+  ];
 
   return $processors;
 }
@@ -1050,7 +1061,7 @@ function _stanbol_enhancer_term_reference_value_callback(array $term_names, arra
  * fields.
  *
  * @param array $coordinates
- *   Array of lng/lng values.
+ *   Array of lat/lng values.
  * @param array $field_info
  *   Info from the field which will store the values returned by the
  *   field_info_field().
@@ -1068,13 +1079,48 @@ function _stanbol_enhancer_geolocation_value_callback(array $coordinates, array 
   if ($field_info['cardinality'] != '-1') {
     $coordinates = array_slice($coordinates, $field_info['cardinality']);
   }
-
   // @see geolocation_field_presave()
   $coordinates = array_map(function ($coordinate) {
     $coordinate['lat_sin'] = sin(deg2rad($coordinate['lat']));
     $coordinate['lat_cos'] = cos(deg2rad($coordinate['lat']));
     $coordinate['lng_rad'] = deg2rad($coordinate['lng']);
     return $coordinate;
+  }, $coordinates);
+
+  return $coordinates;
+}
+
+/**
+ * Value callback for geofield fields.
+ *
+ * Value callback for those processors which stores their values on geofield
+ * fields.
+ *
+ * @param array $coordinates
+ *   Array of lat/lng values.
+ * @param array $field_info
+ *   Info from the field which will store the values returned by the
+ *   field_info_field().
+ *
+ * @return array|bool
+ *   Array of geofield field values, FALSE if the
+ *   field type does not match.
+ */
+function _stanbol_enhancer_geofield_value_callback(array $coordinates, array $field_info) {
+  // Ensure the field's type.
+  if ($field_info['type'] !== 'geofield') {
+    return FALSE;
+  }
+  // Check the field cardinality, limit the number of saved values based on it.
+  if ($field_info['cardinality'] != '-1') {
+    $coordinates = array_slice($coordinates, $field_info['cardinality']);
+  }
+  // @see http://cgit.drupalcode.org/geofield/plain/README.txt?id=7.x-1.x
+  $coordinates = array_map(function ($coordinate) {
+    return geofield_compute_values([
+      'lat' => $coordinate['lat'],
+      'lon' => $coordinate['lng'],
+    ], 'latlon');
   }, $coordinates);
 
   return $coordinates;

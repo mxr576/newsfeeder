@@ -303,7 +303,8 @@ function _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_generate_f
         '#description' => $processor['description'],
         '#options' => $processor_options,
         '#empty_option' => t('- None -'),
-        '#default_value' => isset($enhancer_settings['mapping'][$processor_name]) ? $enhancer_settings['mapping'][$processor_name] : '',
+        // Delete the field old value, when it became disabled.
+        '#default_value' => isset($enhancer_settings['mapping'][$processor_name]) && count($processor_options) != 0 ? $enhancer_settings['mapping'][$processor_name] : '',
         '#disabled' => count($processor_options) == 0,
       ];
     }
@@ -355,6 +356,8 @@ function _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_form_valid
  *   Array of Stanbol Enhancer settings for this entity type and its bundle.
  */
 function _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_form_submit($entity, $bundle, array $settings) {
+  // Clear empty values, no need to save them.
+  $settings['mapping'] = array_filter($settings['mapping']);
   if (!stanbol_enhancer_save($entity, $bundle, $settings)) {
     $entity_info = entity_get_info($entity);
     drupal_set_message(t('Settings of the %entity entity can not be saved, please try again!', ['%entity' => $entity_info['label']]), 'error');
