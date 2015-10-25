@@ -1,0 +1,10 @@
+name = NewsFeeder: Daily Search Results
+description = Display and generate CSV exportable statistics information about daily search result counts in a given timeframe.
+package = NewsFeeder
+core = 7.x
+
+dependencies[] = d3
+dependencies[] = elysia_cron
+dependencies[] = newsfeeder_hacks
+dependencies[] = newsfeeder_search_hacks
+dependencies[] = newsfeeder_solr_queries
