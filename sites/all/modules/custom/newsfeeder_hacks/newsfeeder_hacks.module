@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Hacks module.
+ */
+
+/**
+ * Return the term's names with the given term ids.
+ *
+ * @param array $tids
+ *   Array of taxonomy term ids.
+ *
+ * @return array
+ *   An associative array, where the keys are the term ids and the values are
+ *   the (translated) names of the terms.
+ */
+function newsfeeder_hacks_get_name_of_the_taxonomy_terms(array $tids) {
+  $query = db_select('taxonomy_term_data', 'ttd')
+    ->fields('ttd', ['tid', 'name'])
+    ->condition('tid', $tids, 'IN');
+  $query->addTag('translatable');
+  return $query->execute()->fetchAllKeyed();
+}
