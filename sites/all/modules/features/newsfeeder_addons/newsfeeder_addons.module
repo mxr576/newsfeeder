@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the NewsFeeder Add-ons feature.
+ */
+
+include_once 'newsfeeder_addons.features.inc';
