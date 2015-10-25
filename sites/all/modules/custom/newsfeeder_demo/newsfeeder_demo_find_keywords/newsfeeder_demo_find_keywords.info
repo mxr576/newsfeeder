@@ -1,0 +1,11 @@
+name = NewsFeeder Demo: Find keywords
+description = Demonstrate a feed enhancer plugin, which is able to find specific keywords in the feed items content.
+package = NewsFeeder Demo
+core = 7.x
+version = 7.x-1.x
+
+dependencies[] = newsfeeder_demo_cts
+dependencies[] = newsfeeder_demo_taxonomies
+dependencies[] = feed_enhancer
+
+files[] = includes/newsfeeder_demo_find_keywords_find_keywords_feed_enhancer.inc

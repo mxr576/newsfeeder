@@ -1,0 +1,20 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Demo: Find Keywords module.
+ */
+
+/**
+ * Implements hook_feed_enhancer_plugin_info().
+ */
+function newsfeeder_demo_find_keywords_feed_enhancer_enhancer_plugin_info() {
+  $plugins = [];
+  $plugins['newsfeeder_demo_find_keywords_find_keywords_feed_enhancer'] = [
+    'name' => t('Find Keywords'),
+    'description' => t('Find keywords from a vocabulary in the content of the Feed item.'),
+    'class' => 'FindKeywordsFeedItemEnhancerPlugin',
+    'weight' => 0,
+  ];
+  return $plugins;
+}
