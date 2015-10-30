@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Newsfeeder Hacks module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function newsfeeder_hacks_schema() {
+  $schema = [];
+
+  $schema['feeds_item_deleted_terms'] = [
+    'description' => 'Stores the deleted terms from the feed nodes. These terms should be removed from the nodes in background.',
+    'fields' => [
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The related {node}.nid.',
+      ),
+      'field_name' => array(
+        'type' => 'varchar',
+        'size' => 'normal',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'The related {field_config}.field_name, which contains the term references to the terms.',
+      ),
+      'tid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The deleted {taxonomy_term_data}.tid.',
+      ),
+    ],
+    'unique keys' => [
+      'nid_field_name_tid' => ['nid', 'field_name', 'tid'],
+    ],
+    'foreign keys' => [
+      'node' => [
+        'table' => 'node',
+        'columns' => ['nid' => 'nid'],
+      ],
+      'field' => [
+        'table' => 'field_config',
+        'columns' => ['field_name' => 'field_name'],
+      ],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function newsfeeder_hacks_install() {
+  variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD, NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD);
+  variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS, '');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function newsfeeder_hacks_uninstall() {
+  variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS);
+  variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD);
+}

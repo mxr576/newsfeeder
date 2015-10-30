@@ -5,6 +5,31 @@
  * Module file for NewsFeeder Hacks module.
  */
 
+define('NEWSFEEDER_HACKS_TITLE_REGEXP', '/<title>[\n\r\s]*([^<>]*[a-zA-Z ]*)[\n\r\s]*<\/title>/');
+define('NEWSFEEDER_HACKS_NODE_PROCESSOR_CLASS', 'FeedsNodeProcessor');
+define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS', 'nf_hacks_unpublished_delete_feed_importers');
+define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD', 'nf_hacks_unpublished_delete_period');
+define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD', '4 0 1 * *');
+define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE', 'newsfeeder_hacks_delete_unpublished_feed_items');
+define('NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE', 'newsfeeder_hacks_remove_term_references');
+
+/**
+ * Implements hook_menu().
+ */
+function newsfeeder_hacks_menu() {
+  $items = [];
+
+  $items['admin/structure/feeds/newsfeeder-hacks'] = [
+    'title' => 'NewsFeeder',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['newsfeeder_hacks_config_form'],
+    'access arguments' => ['administer feeds'],
+    'file' => 'newsfeeder_hacks.ui.inc',
+    'type' => MENU_LOCAL_ACTION,
+  ];
+  return $items;
+}
+
 /**
  * Return the term's names with the given term ids.
  *
@@ -21,4 +46,370 @@ function newsfeeder_hacks_get_name_of_the_taxonomy_terms(array $tids) {
     ->condition('tid', $tids, 'IN');
   $query->addTag('translatable');
   return $query->execute()->fetchAllKeyed();
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function newsfeeder_hacks_form_alter(&$form, &$form_state, $form_id) {
+  // Alter the Feed source nodes.
+  if (isset($form['#node_edit_form']) && isset($form['feeds'])) {
+    $form['feeds']['#type'] = 'container';
+    $form['feeds']['FeedsHTTPFetcher']['auto_node_title'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Set the Title automatically'),
+      '#default_value' => TRUE,
+    ];
+    $form['title']['#states'] = [
+      'visible' => [
+        ':input[name="feeds[FeedsHTTPFetcher][auto_node_title]"]' => ['checked' => FALSE],
+      ],
+    ];
+    if ($form['title']['#required']) {
+      $form['title']['#required'] = FALSE;
+      $form['title']['#states']['required'] = [
+        ':input[name="feeds[FeedsHTTPFetcher][auto_node_title]"]' => ['checked' => FALSE],
+      ];
+    }
+    $form['actions']['submit']['#validate'] = array_merge(['newsfeeder_hacks_feed_source_node_form_validate'], $form['#submit']);
+    if (isset($form['actions']['preview'])) {
+      $form['actions']['preview']['#validate'] = array_merge(['newsfeeder_hacks_feed_source_node_form_validate'], $form['#submit']);
+    }
+  }
+}
+
+/**
+ * Custom validation handler for feed source nodes.
+ */
+function newsfeeder_hacks_feed_source_node_form_validate($form, &$form_state) {
+  if ($form_state['values']['feeds']['FeedsHTTPFetcher']['auto_node_title'] && !empty($form_state['values']['feeds']['FeedsHTTPFetcher']['source'])) {
+    // Try to set the Title of the node automatically.
+    $response = drupal_http_request($form_state['values']['feeds']['FeedsHTTPFetcher']['source']);
+    if ($response->code == 200) {
+      $title = preg_match(NEWSFEEDER_HACKS_TITLE_REGEXP, $response->data, $matches) ? $matches[1] : NULL;
+      if (!empty($title) && is_string($title) && strlen($title) <= 100) {
+        $form_state['values']['title'] = htmlspecialchars_decode($title);
+      }
+      else {
+        form_error($form['title'], t('Form title can not be set automatically, please set it manually!'));
+      }
+    }
+    else {
+      form_error($form['feeds']['FeedsHTTPFetcher']['source'], t('Feed not found, please check the URL again!'));
+    }
+  }
+}
+
+/**
+ * Helper function which checks, whether a feeds source exists in the system.
+ *
+ * @param string $url
+ *   URL of the feed source.
+ *
+ * @return int|bool
+ *   ID of the feed source node, if exists, else FALSE.
+ */
+function newsfeeder_hacks_check_if_feed_source_exists_with_url($url) {
+  return db_select('feeds_source', 'fs')
+    ->condition('source', $url)
+    ->fields('fs', ['feed_nid'])
+    ->execute()
+    ->fetchField();
+}
+
+/**
+ * Helper function which returns Feeds importers with Node processors.
+ *
+ * @return array
+ *   An array of the Feeds importer entities, keyed by the machine name of the
+ *   feeds importer.
+ */
+function newsfeeder_hacks_get_feed_importers_with_node_processors() {
+  $importers = feeds_importer_load_all();
+  return array_filter($importers, function ($importer) {
+    $config = $importer->getConfig();
+    return isset($config['processor']['plugin_key']) && $config['processor']['plugin_key'] == NEWSFEEDER_HACKS_NODE_PROCESSOR_CLASS;
+  });
+}
+
+/**
+ * Implements hook_cronapi().
+ */
+function newsfeeder_hacks_cronapi($op, $job = NULL) {
+  $items['newsfeeder_hacks_delete_unpublished_feed_items_cron'] = [
+    'description' => t('Delete unpublished feed items of the <a href="@url">selected feeds importers</a>.', ['@url' => url('admin/structure/feeds/newsfeeder-hacks')]),
+    'rule' => variable_get(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD, NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD),
+  ];
+  return $items;
+}
+
+/**
+ * Cron worker which collects the unpublished feed items.
+ *
+ * @see newsfeeder_hacks_cronapi()
+ */
+function newsfeeder_hacks_delete_unpublished_feed_items_cron() {
+  $feed_importers = variable_get(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS, []);
+  // Check, if any Feeds importer selected on the configuration UI.
+  if (!empty($feed_importers)) {
+    $queue = DrupalQueue::get(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE);
+    array_walk($feed_importers, function ($importer) use ($queue) {
+      // Get all unpublished feed items of the feed importer.
+      $feed_items = newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($importer);
+      if (!empty($feed_items)) {
+        $feed_items = array_keys($feed_items);
+        foreach ($feed_items as $nid) {
+          // Add the feed item node to the queue.
+          $queue->createItem($nid);
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Get all feed items which were imported by the given Feeds importer.
+ *
+ * @param string $importer
+ *   Machine name of the Feeds importer.
+ *
+ * @return array
+ *   An associative array of feed items, keyed by the entity ids.
+ */
+function newsfeeder_hacks_get_feed_items_of_the_feed_importer($importer) {
+  return db_select('feeds_item', 'fi')
+    ->fields('fi')
+    ->condition('id', $importer)
+    ->execute()
+    ->fetchAllAssoc('entity_id');
+}
+
+/**
+ * Get all unpublished feed items which were imported this Feeds importer.
+ *
+ * @param string $importer
+ *   Machine name of the Feeds importer.
+ *
+ * @return array
+ *   An associative array of feed items, keyed by the entity ids.
+ */
+function newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($importer) {
+  $query = db_select('feeds_item', 'fi');
+  $query->join('node', 'n', 'fi.entity_id=n.nid');
+  $query->fields('fi')
+    ->condition('id', $importer)
+    ->condition('n.status', NODE_NOT_PUBLISHED);
+  return $query->execute()
+    ->fetchAllAssoc('entity_id');
+}
+
+/**
+ * Implements hook_cron_queue_info().
+ */
+function newsfeeder_hacks_cron_queue_info() {
+  $queues = [];
+  $queues[NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE] = [
+    'worker callback' => '_newsfeeder_hacks_delete_unpublished_feed_items_queue_worker_queue_worker',
+    'time' => 15,
+  ];
+  $queues[NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE] = [
+    'worker callback' => '__newsfeeder_hacks_remove_term_references_queue_worker',
+    'time' => 15,
+  ];
+  return $queues;
+}
+
+/**
+ * Queue worker callback, which deletes the deleted terms from feed items.
+ *
+ * @param int $nid
+ *   Node id of the feed item.
+ *
+ * @see newsfeeder_hacks_cron_queue_info()
+ */
+function __newsfeeder_hacks_remove_term_references_queue_worker($nid) {
+  // Gather the terms which needs to be removed from this node.
+  $terms_to_delete = db_select('feeds_item_deleted_terms', 'fidt')
+    ->condition('nid', $nid)
+    ->fields('fidt', ['tid', 'field_name'])
+    ->execute()
+    ->fetchAllKeyed();
+
+  if (!empty($terms_to_delete)) {
+    $emw = entity_metadata_wrapper('node', $nid);
+    foreach ($terms_to_delete as $tid => $field) {
+      $values = $emw->{$field}->raw();
+      // Remove the terms from the term reference field values.
+      $values = array_diff($values, [$tid]);
+      $emw->{$field} = $values;
+    }
+    try {
+      // Save the updated node.
+      $emw->save();
+      // Remove the deleted terms from the log table.
+      db_delete('feeds_item_deleted_terms')->condition('nid', $nid)
+        ->condition('tid', array_keys($terms_to_delete), 'IN')
+        ->execute();
+      // Clear field cache of the node.
+      cache_clear_all('field:node:' . $nid, 'cache_field');
+    }
+    catch (Exception $e) {
+      watchdog_exception('newsfeeder_hack_term_reference_delete', $e);
+    }
+  }
+}
+
+/**
+ * Queue worker callback, which deletes the feed node with the given id.
+ *
+ * @param int $nid
+ *   Node id of the feed item.
+ *
+ * @see newsfeeder_hacks_cron_queue_info()
+ */
+function _newsfeeder_hacks_delete_unpublished_feed_items_queue_worker($nid) {
+  node_delete($nid);
+}
+
+/**
+ * Implements hook_taxonomy_term_delete().
+ */
+function newsfeeder_hacks_taxonomy_term_delete($term) {
+  newsfeeder_hacks_delete_term_references_on_feed_items($term);
+}
+
+/**
+ * Remove the deleted term from the feed nodes' term. reference fields.
+ *
+ * @param \stdClass $term
+ *   Term object.
+ */
+function newsfeeder_hacks_delete_term_references_on_feed_items(stdClass $term) {
+  // First check, if this term's vocabulary in use on any term. reference
+  // field of any feed node.
+  $feed_node_bundles = newsfeeder_hacks_get_node_bundles_from_feed_importer_with_node_processor();
+  array_walk($feed_node_bundles, function ($bundle) use ($term) {
+    $term_fields = newsfeeder_hacks_get_taxonomy_fields_of_node_bundle($bundle);
+    if (!empty($term_fields)) {
+      $fields_by_vocab = newsfeeder_hack_match_taxonomy_term_reference_fields_with_their_vocabularies($term_fields);
+      if (!empty($fields_by_vocab[$term->vocabulary_machine_name])) {
+        // The field's vocab in use. Let's check, if any term reference
+        // field on any feed node contains this term as a value.
+        $queue = DrupalQueue::get(NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE);
+        $success = FALSE;
+        foreach ($fields_by_vocab[$term->vocabulary_machine_name] as $field) {
+          $nids = newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, $term->tid);
+          // Add the found nodes to the cleaner queue.
+          array_walk($nids, function ($nid) use ($queue, $field, $term) {
+            $queue->createItem($nid);
+            // Store the log entry about the removed term.
+            // We store the deleted terms in a separated log table, because
+            // when the queue run, then it could delete all removed from
+            // from each node in one run.
+            try {
+              db_insert('feeds_item_deleted_terms')->fields([
+                'nid' => $nid,
+                'field_name' => $field,
+                'tid' => $term->tid,
+              ])->execute();
+              $success = TRUE;
+            }
+            catch (Exception $e) {
+              watchdog_exception('newsfeeder_hack_term_reference_delete', $e);
+            }
+          });
+        }
+        if ($success) {
+          drupal_set_message(t('The @term will be removed from the referenced feed items in the background.', ['@term' => $term->name]));
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Return the attached node bundles from Feed importers with node processors.
+ */
+function newsfeeder_hacks_get_node_bundles_from_feed_importer_with_node_processor() {
+  $attached_node_bundles = &drupal_static(__FUNCTION__, []);
+  if (empty($attached_node_bundles)) {
+    $node_importers = newsfeeder_hacks_get_feed_importers_with_node_processors();
+    array_walk($node_importers, function ($importer) use (&$attached_node_bundles) {
+      $config = $importer->getConfig();
+      $attached_node_bundles[] = $config['processor']['config']['bundle'];
+    });
+  }
+
+  return $attached_node_bundles;
+}
+
+/**
+ * Get taxonomy term reference fields of a node bundle.
+ *
+ * @param string $bundle
+ *   Node bundle.
+ *
+ * @return array
+ *   Array of taxonomy term reference fields.
+ */
+function newsfeeder_hacks_get_taxonomy_fields_of_node_bundle($bundle) {
+  $term_fields = &drupal_static(__FUNCTION__ . '_' . $bundle, FALSE);
+  if ($term_fields === FALSE) {
+    $term_fields = [];
+    $node_properties = entity_get_property_info('node');
+    if (!empty($node_properties['bundles'][$bundle]['properties'])) {
+      $term_fields = array_filter($node_properties['bundles'][$bundle]['properties'], function ($field) {
+        return $field['type'] == 'list<taxonomy_term>';
+      });
+      $term_fields = array_keys($term_fields);
+    }
+  }
+
+  return $term_fields;
+}
+
+/**
+ * Returns the taxonomy term reference fields grouped by their vocabularies.
+ *
+ * @param array $fields
+ *   Array of field machine names.
+ *
+ * @return array
+ *   An associative array, where the keys are the vocabulary machine names
+ *   and the values are the field machine names, which belongs to
+ *   each vocabulary.
+ */
+function newsfeeder_hack_match_taxonomy_term_reference_fields_with_their_vocabularies(array $fields) {
+  $fields_grouped_by_vocabs = [];
+
+  array_walk($fields, function ($field_name) use (&$fields_grouped_by_vocabs) {
+    $field_info = field_info_field($field_name);
+    if (!empty($field_info['settings']['allowed_values'][0]['vocabulary'])) {
+      $fields_grouped_by_vocabs[$field_info['settings']['allowed_values'][0]['vocabulary']][] = $field_name;
+    }
+  });
+
+  return $fields_grouped_by_vocabs;
+}
+
+/**
+ * Return those nodes which contains reference a term in a field.
+ *
+ * @param string $field
+ *   Name of the field.
+ * @param int $tid
+ *   Taxonomy term id.
+ *
+ * @return array
+ *   Array of node ids.
+ */
+function newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, $tid) {
+  $query = new EntityFieldQuery();
+  $result = $query->entityCondition('entity_type', 'node')
+    ->fieldCondition($field, 'tid', $tid)
+    ->execute();
+  if (!empty($result['node'])) {
+    return array_keys($result['node']);
+  }
+  return [];
 }
