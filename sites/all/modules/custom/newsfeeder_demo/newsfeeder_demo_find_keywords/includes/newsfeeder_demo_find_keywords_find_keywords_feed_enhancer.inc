@@ -206,7 +206,7 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
    * @return mixed
    *   Array of term names from the vocabulary.
    */
-  private function getTermsFromTheVocabulary($vid) {
+  private static function getTermsFromTheVocabulary($vid) {
     return db_select('taxonomy_term_data', 'ttd')
       ->fields('ttd', ['name'])
       ->condition('vid', $vid)
@@ -215,12 +215,21 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
   }
 
   /**
+   * Helper function which generate values for a term reference field.
+   *
+   * When a term does not exist it creates a new term in the proper
+   * vocabulary.
+   *
    * @param array $term_names
+   *   Array of taxonomy term names.
    * @param array $field_info
+   *   Field info, returned by field_get_info().
+   *
    * @return array|bool
+   *   Array of taxonomy term reference field values, FALSE if the field type
+   *   does not match.
    */
   private function getTaxonomyTermReferenceFieldValues(array $term_names, array $field_info) {
-    print_r($field_info);
     // Ensure the field's type.
     if ($field_info['type'] !== 'taxonomy_term_reference') {
       return FALSE;
