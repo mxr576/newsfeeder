@@ -815,6 +815,13 @@ abstract class FeedsProcessor extends FeedsPlugin {
       ),
       '#default_value' => $this->config['update_existing'],
     );
+    $form['delete_with_source'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Delete items with source'),
+      '#description' => t('If enabled, any feed items associated with a source node will be removed along with the node. Not available for standalone importers.'),
+      '#default_value' => $this->config['delete_with_source'],
+      '#disabled' => empty(feeds_importer($this->id)->config['content_type']) ? TRUE : FALSE,
+    );
     global $user;
     $formats = filter_formats($user);
     foreach ($formats as $format) {

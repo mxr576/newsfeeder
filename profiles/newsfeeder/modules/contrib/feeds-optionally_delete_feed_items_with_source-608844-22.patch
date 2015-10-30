@@ -1,0 +1,66 @@
+From b01015e30ca4383ab940da3824a37b3c8f5bbfb4 Mon Sep 17 00:00:00 2001
+From: anou <anou@smol.org>
+Date: Thu, 18 Jun 2015 14:26:27 +0200
+Subject: [PATCH] Optionnaly delete feed items with source
+
+---
+ feeds.module                   | 11 ++++++++++-
+ plugins/FeedsNodeProcessor.inc |  1 +
+ plugins/FeedsProcessor.inc     |  7 +++++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/feeds.module b/feeds.module
+index da46661..9eff1f7 100644
+--- a/feeds.module
++++ b/feeds.module
+@@ -674,7 +674,16 @@ function feeds_node_delete($node) {
+   // feeds_get_importer_id() to determine importer id as the importer may have
+   // been deleted.
+   if ($importer_id = db_query("SELECT id FROM {feeds_source} WHERE feed_nid = :nid", array(':nid' => $node->nid))->fetchField()) {
+-    feeds_source($importer_id, $node->nid)->delete();
++    $source = feeds_source($importer_id, $node->nid);
++
++    // Set delete job for child nodes if the feed importer was set to delete its child nodes.
++    if ($source->importer->processor->config['delete_with_source']) {
++      $context = array(
++        'title' => t('Deleting'),
++      );
++      feeds_batch('clear', $importer_id, $node->nid, $context);
++    }
++    $source->delete();
+   }
+ }
+ 
+diff --git a/plugins/FeedsNodeProcessor.inc b/plugins/FeedsNodeProcessor.inc
+index 2cfdf30..28da8c5 100644
+--- a/plugins/FeedsNodeProcessor.inc
++++ b/plugins/FeedsNodeProcessor.inc
+@@ -170,6 +170,7 @@ class FeedsNodeProcessor extends FeedsProcessor {
+       'expire' => FEEDS_EXPIRE_NEVER,
+       'author' => 0,
+       'authorize' => TRUE,
++      'delete_with_source' => FALSE,
+     ) + parent::configDefaults();
+   }
+ 
+diff --git a/plugins/FeedsProcessor.inc b/plugins/FeedsProcessor.inc
+index ab0df88..7d4760d 100644
+--- a/plugins/FeedsProcessor.inc
++++ b/plugins/FeedsProcessor.inc
+@@ -805,6 +805,13 @@ abstract class FeedsProcessor extends FeedsPlugin {
+       ),
+       '#default_value' => $this->config['update_existing'],
+     );
++    $form['delete_with_source'] = array(
++      '#type' => 'checkbox',
++      '#title' => t('Delete items with source'),
++      '#description' => t('If enabled, any feed items associated with a source node will be removed along with the node. Not available for standalone importers.'),
++      '#default_value' => $this->config['delete_with_source'],
++      '#disabled' => empty(feeds_importer($this->id)->config['content_type']) ? TRUE : FALSE,
++    );
+     global $user;
+     $formats = filter_formats($user);
+     foreach ($formats as $format) {
+-- 
+2.2.1
+

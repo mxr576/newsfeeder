@@ -170,6 +170,7 @@ class FeedsNodeProcessor extends FeedsProcessor {
       'expire' => FEEDS_EXPIRE_NEVER,
       'author' => 0,
       'authorize' => TRUE,
+      'delete_with_source' => FALSE,
     ) + parent::configDefaults();
   }
 

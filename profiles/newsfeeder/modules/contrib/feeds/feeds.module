@@ -674,7 +674,16 @@ function feeds_node_delete($node) {
   // feeds_get_importer_id() to determine importer id as the importer may have
   // been deleted.
   if ($importer_id = db_query("SELECT id FROM {feeds_source} WHERE feed_nid = :nid", array(':nid' => $node->nid))->fetchField()) {
-    feeds_source($importer_id, $node->nid)->delete();
+    $source = feeds_source($importer_id, $node->nid);
+
+    // Set delete job for child nodes if the feed importer was set to delete its child nodes.
+    if ($source->importer->processor->config['delete_with_source']) {
+      $context = array(
+        'title' => t('Deleting'),
+      );
+      feeds_batch('clear', $importer_id, $node->nid, $context);
+    }
+    $source->delete();
   }
 }
 
