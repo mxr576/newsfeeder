@@ -73,6 +73,9 @@ function newsfeeder_demo_cts_strongarm() {
       'token' => array(
         'custom_settings' => FALSE,
       ),
+      'revision' => array(
+        'custom_settings' => FALSE,
+      ),
     ),
     'extra_fields' => array(
       'form' => array(
@@ -114,6 +117,13 @@ function newsfeeder_demo_cts_strongarm() {
   $strongarm = new stdClass();
   $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
   $strongarm->api_version = 1;
+  $strongarm->name = 'language_content_type_feed_item';
+  $strongarm->value = '0';
+  $export['language_content_type_feed_item'] = $strongarm;
+
+  $strongarm = new stdClass();
+  $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
+  $strongarm->api_version = 1;
   $strongarm->name = 'language_content_type_feed_source';
   $strongarm->value = '0';
   $export['language_content_type_feed_source'] = $strongarm;
@@ -150,7 +160,9 @@ function newsfeeder_demo_cts_strongarm() {
   $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
   $strongarm->api_version = 1;
   $strongarm->name = 'node_options_feed_item';
-  $strongarm->value = array();
+  $strongarm->value = array(
+    0 => 'status',
+  );
   $export['node_options_feed_item'] = $strongarm;
 
   $strongarm = new stdClass();
@@ -189,6 +201,20 @@ function newsfeeder_demo_cts_strongarm() {
   $strongarm->name = 'node_submitted_feed_source';
   $strongarm->value = 0;
   $export['node_submitted_feed_source'] = $strongarm;
+
+  $strongarm = new stdClass();
+  $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
+  $strongarm->api_version = 1;
+  $strongarm->name = 'pathauto_node_feed_item_pattern';
+  $strongarm->value = '[node:feed-source:title]/[node:title]';
+  $export['pathauto_node_feed_item_pattern'] = $strongarm;
+
+  $strongarm = new stdClass();
+  $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
+  $strongarm->api_version = 1;
+  $strongarm->name = 'pathauto_node_feed_source_pattern';
+  $strongarm->value = '[node:title]';
+  $export['pathauto_node_feed_source_pattern'] = $strongarm;
 
   return $export;
 }
