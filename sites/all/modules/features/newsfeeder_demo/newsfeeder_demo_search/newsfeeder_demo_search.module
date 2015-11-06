@@ -1,0 +1,62 @@
+<?php
+/**
+ * @file
+ * Code for the NewsFeeder Demo: Search feature.
+ */
+
+include_once 'newsfeeder_demo_search.features.inc';
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function newsfeeder_demo_search_form_views_exposed_form_alter(&$form, $form_state) {
+  $view = $form_state['view'];
+  if ($view->name == 'newsfeeder_demo_feeds_search') {
+    // However the format is specified in $form['from']['#date_format']
+    // the date field only accepts the value in this format: Y-m-d.
+    // $form['from']['#default_value'] = date('Y-m-d', strtotime('-7 days'));
+    // $form['to']['#default_value'] = date('Y-m-d', strtotime('now'));
+
+    // Set the default value of the From - To filters this way, because
+    // we always need for the date values in the $_GET array for
+    // displaying the statistics link.
+    if (!isset($form_state['input']['from']['date'])) {
+      $_GET['from']['date'] = date('m/d/Y', strtotime('-7 days'));
+    }
+    if (!isset($form_state['input']['to']['date'])) {
+      $_GET['to']['date'] = date('m/d/Y', strtotime('now'));
+    }
+
+    $form['#after_build'][] = 'newsfeeder_demo_search_form_newsfeeder_demo_feeds_search_views_exposed_form_after_build';
+  }
+}
+
+/**
+ * Custom form after build for newsfeeder_demo_feeds_search views exposed form.
+ */
+function newsfeeder_demo_search_form_newsfeeder_demo_feeds_search_views_exposed_form_after_build($form, &$form_state) {
+  // Reformat date fields.
+  $form['from']['date']['#title'] = '';
+  $form['to']['date']['#title'] = '';
+  $form['from']['date']['#size'] = 8;
+  $form['to']['date']['#size'] = 8;
+  $form['from']['date']['#description'] = '';
+  $form['to']['date']['#description'] = '';
+  return $form;
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function newsfeeder_demo_search_views_pre_render(&$view) {
+  $output = '';
+  $query_params = drupal_get_query_parameters();
+
+  // Display the Export statistics link.
+  if (!empty($query_params['from']) && !empty($query_params['to']) && (!empty($query_params['keywords']) || !empty($query_params['f']))) {
+    // l() can not be used, because the url returned from url() already.
+    $output .= format_string('<a href="@url" target="_blank">Export statistics</a>', ['@url' => newsfeeder_daily_search_results_build_link_to_statistics_page('search_api@feed_items')]);
+  }
+
+  $view->attachment_before = $output;
+}
