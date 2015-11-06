@@ -1,0 +1,7 @@
+name = NewsFeeder Demo
+description = Helper module to demonstrate the NewsFeeder features.
+package = NewsFeeder Demo
+core = 7.x
+
+dependencies[] = newsfeeder_demo_cts
+dependencies[] = newsfeeder_demo_taxonomies
