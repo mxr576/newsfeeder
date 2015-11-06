@@ -5,4 +5,5 @@ core = 7.x
 
 dependencies[] = facetapi
 dependencies[] = search_api
+dependencies[] = search_api_facetapi
 dependencies[] = search_api_solr
