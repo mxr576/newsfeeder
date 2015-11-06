@@ -413,3 +413,34 @@ function newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, 
   }
   return [];
 }
+
+/**
+ * Implements hook_views_query_alter().
+ *
+ * Temporary fix for the date granularity issue of the queries.
+ *
+ * The main problem is the queries which contains date intervals could be
+ * demonstrated easily.
+ * Let's assume that the user would like list those nodes which
+ * created between today, for example 2015.01.01. The achieve this the user
+ * will set the date filter's From and To values to 2015.01.01.
+ * These filters set to be inclusive ("Greater than or equal" and "Less than
+ * equal") in the search view's settings, so the user is expect that when
+ * the query executed, then the results will contains those nodes which
+ * created between 2015.01.01 00:00 and 2015.01.01 23:59, but this is not
+ * true! The query will contains the nodes between 00:00 and 00:00.
+ *
+ * The reason of this problem is that the date interval granularity is day
+ * instead of second, so with this temporary fix, it could be solved that
+ * the upper limit's granularity could be second, in other words, it contains
+ * the 23:59:59 in those cases ONLY, when the date field is the node's
+ * created date.
+ */
+function newsfeeder_hacks_views_query_alter(&$view, &$query) {
+  foreach ($query->where[1]['conditions'] as &$cond) {
+    if (is_string($cond['field']) && strpos($cond['field'], 'node.created <=') !== FALSE) {
+      list($field, $op, $value) = explode(' ', $cond['field']);
+      $cond['field'] = $field . ' ' . $op . ' ' . (strtotime('+1 day', $value) - 1);
+    }
+  }
+}
