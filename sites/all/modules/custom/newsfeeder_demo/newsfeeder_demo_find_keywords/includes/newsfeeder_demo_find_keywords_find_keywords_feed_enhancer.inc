@@ -229,7 +229,7 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
    *   Array of taxonomy term reference field values, FALSE if the field type
    *   does not match.
    */
-  private function getTaxonomyTermReferenceFieldValues(array $term_names, array $field_info) {
+  private static function getTaxonomyTermReferenceFieldValues(array $term_names, array $field_info) {
     // Ensure the field's type.
     if ($field_info['type'] !== 'taxonomy_term_reference') {
       return FALSE;
