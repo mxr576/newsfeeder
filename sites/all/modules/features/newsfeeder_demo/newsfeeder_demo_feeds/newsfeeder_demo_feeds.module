@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the NewsFeeder Demo: Feeds feature.
+ */
+
+include_once 'newsfeeder_demo_feeds.features.inc';
