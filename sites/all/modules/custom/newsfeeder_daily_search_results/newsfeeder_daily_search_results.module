@@ -35,7 +35,7 @@ function newsfeeder_daily_search_results_menu() {
 function newsfeeder_daily_search_results_generate_daily_search_result_statistics_form_access() {
   $query_params = drupal_get_query_parameters();
   // Ensure all necessary values are properly passed.
-  return (!empty($query_params['search_index']) && !empty($query_params['from']) && !empty($query_params['to']) && (count($query_params['keywords']) != 0 || count($query_params['filters']) != 0));
+  return (!empty($query_params['search_index']) && !empty($query_params['from']) && !empty($query_params['to']) && ((!empty($query_params['keywords']) && count($query_params['keywords']) != 0) || (!empty($query_params['filters']) && count($query_params['filters']) != 0)));
 }
 
 /**
@@ -74,6 +74,13 @@ function newsfeeder_daily_search_results_generate_daily_search_result_statistics
  */
 function newsfeeder_daily_search_results_generate_daily_search_result_statistics_form_submit($form, &$form_state) {
   $values = $form_state['values'];
+  // Ensure that these indexes exists.
+  if (!isset($values['keywords'])) {
+    $values['keywords'] = [];
+  }
+  if (!isset($values['filters'])) {
+    $values['filters'] = [];
+  }
   // Start the csv export batch.
   batch_set(
     newsfeeder_daily_search_results_generate_csv_report_batch($values['search_index'], $values['from'], $values['to'], $values['keywords'], $values['filters'])
@@ -513,7 +520,7 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
     ];
 
     // Check if there any active free search term filter.
-    $keywords = newsfeeder_search_hacks_get_keywords_from_query_parameters([], 'text');
+    $keywords = newsfeeder_search_hacks_get_keywords_from_query_parameters([], 'keywords');
     if (!empty($keywords)) {
       $chart['legend'] += $keywords;
       if (count($keywords) > 1) {

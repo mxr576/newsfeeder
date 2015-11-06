@@ -179,7 +179,7 @@ function _newsfeeder_daily_search_results_export_generate_date_columns_batch_ope
     $context['message'] = t('@count date successfully formatted for the export.', ['@count' => $context['sandbox']['progress']]);
     $context['sandbox']['progress']++;
   }
-  if ($context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1)) {
+  if ($context['finished'] = $context['sandbox']['max'] == 0 || ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1)) {
     $context['results']['csv_content'] = array_merge_recursive($context['sandbox']['formatted_dates'], $context['results']['csv_content']);
   }
 }
@@ -235,7 +235,7 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
   }
   fclose($res);
 
-  $context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1);
+  $context['finished'] = $context['sandbox']['max'] == 0 || ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1);
 }
 
 /**
