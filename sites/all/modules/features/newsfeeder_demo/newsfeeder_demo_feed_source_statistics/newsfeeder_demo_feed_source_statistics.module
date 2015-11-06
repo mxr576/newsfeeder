@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the NewsFeeder Demo: Feed source statistics feature.
+ */
+
+include_once 'newsfeeder_demo_feed_source_statistics.features.inc';

@@ -1,0 +1,12 @@
+name = NewsFeeder Demo: Feed source statistics
+core = 7.x
+package = NewsFeeder Demo
+version = 7.x-1.0-20151106dev1
+dependencies[] = newsfeeder_addons
+dependencies[] = newsfeeder_demo_feeds
+dependencies[] = views
+dependencies[] = views_content_cache
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:2
+features[views_view][] = newsfeeder_demo_feeds_source_statistics
+project path = sites/all/modules/features/newsfeeder_demo
