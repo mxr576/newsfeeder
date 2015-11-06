@@ -488,7 +488,7 @@ function _feed_enhancer_process_plugin_on_feed_item_queue_worker(array $queue_it
                 // system to try to process this feed item again with the
                 // current Feed Enhancer.
                 if (!call_user_func([$enhancer_plugin['class'], 'processFeedItem'], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])) {
-                  throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', ['@debug' => print_r($queue_item, TRUE)]));
+                  throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', ['@enhancer' => $enhancer_plugin['class'], '@debug' => print_r($queue_item, TRUE)]));
                 }
                 // Update the Enhanced entity's info in the db.
                 feed_enhancer_update_enhanced_entity_of_entity($enhanced_entity_info, $enhancer->config, $queue_item['enhancer_plugin']);

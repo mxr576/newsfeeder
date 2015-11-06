@@ -119,16 +119,18 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
         // Full Content successfully extracted from the feed item's URL, save
         // it to the assigned field.
         if ($full_content = self::getFullContentOfUrl($feed_item_wrapper->{$settings['proxy_settings']['feed_item_url_field']}->url->value(), $settings['proxy_settings'])) {
+          // Remove all non-printable characters from the string, which could
+          // cause DB error on entity save.
+          $full_content = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $full_content);
           // Validate full content value.
           if ($feed_item_wrapper->{$settings['properties']['full_content']}->validate($full_content)) {
-            // Set the field value, but before that, remove all non-printable
-            // characters from the string, which could cause DB error on
-            // entity save.
-            $feed_item_wrapper->{$settings['properties']['full_content']} = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $full_content);
+            // Set the field value.
+            $feed_item_wrapper->{$settings['properties']['full_content']} = $full_content;
           }
           else {
-            watchdog(get_called_class(), 'Returned full content can not be stored in the %field field, because it is invalid. Full content: <pre>@full_content</pre>', [
+            watchdog(get_called_class(), 'Returned full content from <a href="@url">this url</a> can not be stored in the %field field, because it is invalid. Full content: <pre>@full_content</pre>', [
               '%field' => $settings['properties']['full_content'],
+              '@url' => $feed_item_wrapper->{$settings['proxy_settings']['feed_item_url_field']}->url->value(),
               '@full_content' => print_r($full_content, TRUE),
             ], WATCHDOG_WARNING);
           }
