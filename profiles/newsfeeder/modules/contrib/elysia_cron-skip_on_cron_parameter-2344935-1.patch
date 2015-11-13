@@ -1,0 +1,27 @@
+From 1d6788735a0063dfe67eaf2549af924a9a37fde4 Mon Sep 17 00:00:00 2001
+From: omiras <oscar.miras@gmail.com>
+Date: Thu, 25 Sep 2014 17:44:58 +0200
+Subject: [PATCH] 2344935: Honor 'skip on cron' hook_cron_queue_info parameter
+
+---
+ elysia_cron.module | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/elysia_cron.module b/elysia_cron.module
+index 5393a3b..b7abdf3 100644
+--- a/elysia_cron.module
++++ b/elysia_cron.module
+@@ -1044,6 +1044,10 @@ function elysia_cron_run($manual_run = false) {
+   if (EC_DRUPAL_VERSION >= 7) {
+     // D7 Queue processing
+     foreach ($queues as $queue_name => $info) {
++      if (!empty($info['skip on cron'])) {
++        // Do not run if queue wants to skip.
++        continue;
++      }
+       $function = $info['worker callback'];
+       $end = time() + (isset($info['time']) ? $info['time'] : 15);
+       $queue = DrupalQueue::get($queue_name);
+-- 
+2.1.1
+
