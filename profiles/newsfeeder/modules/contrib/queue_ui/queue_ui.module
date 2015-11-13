@@ -290,3 +290,50 @@ function queue_ui_batch_finished($success, $results, $operations) {
   }
   drupal_set_message($message);
 }
+
+/**
+ * Batch operation callback for cron queues.
+ */
+function queue_ui_cron_queue_batch_process($queue_name, $cron_queue_info, &$context) {
+  $queue = DrupalQueue::get($queue_name);
+  $function = $cron_queue_info['worker callback'];
+
+  if (empty($context['sandbox'])) {
+    $context['sandbox']['progress'] = 0;
+    $context['sandbox']['max'] = $queue->numberOfItems();
+  }
+
+  $end = time() + (isset($cron_queue_info['time']) ? $cron_queue_info['time'] : 15);
+  while (time() < $end && ($item = $queue->claimItem())) {
+    try {
+      $function($item->data);
+      $queue->deleteItem($item);
+    }
+    catch (Exception $e) {
+      // In case of exception log it and leave the item in the queue
+      // to be processed again later.
+      watchdog_exception('queue_ui', $e);
+      drupal_set_message($e->getMessage(), 'error', FALSE);
+    }
+
+    $context['sandbox']['progress']++;
+  }
+
+  // If the last attempt to get an item produced an empty result, then no more
+  // claimable items remain in the queue and we can tell Batch API we are done.
+  // Otherwise, items may remain in the queue and we should tell Batch API to
+  // call us again.
+  if (empty($item)) {
+    $context['finished'] = 1;
+  }
+  else {
+    // We can't use numberOfItems() to know how many items we must process,
+    // because that does not take claims on items into account.
+    $context['finished'] = 0;
+  }
+
+  $context['message'] = t('Processed !count items in queue @name.', array(
+    '!count' => $context['sandbox']['progress'],
+    '@name' => $queue_name,
+  ));
+}
