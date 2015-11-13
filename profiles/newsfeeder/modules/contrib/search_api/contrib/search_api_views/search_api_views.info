@@ -25,6 +25,7 @@ files[] = includes/handler_filter_text.inc
 files[] = includes/handler_filter_user.inc
 files[] = includes/handler_sort.inc
 files[] = includes/plugin_cache.inc
+files[] = includes/plugin_content_cache.inc
 files[] = includes/query.inc
 
 ; Information added by Drupal.org packaging script on 2015-08-30
