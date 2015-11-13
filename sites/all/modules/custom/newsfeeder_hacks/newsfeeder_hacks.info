@@ -5,3 +5,5 @@ core = 7.x
 
 dependencies[] = entity
 dependencies[] = feeds
+
+files[] = includes/NewsFeederQueue.php

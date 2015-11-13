@@ -61,6 +61,7 @@ function newsfeeder_hacks_schema() {
 function newsfeeder_hacks_install() {
   variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD, NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD);
   variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS, '');
+  variable_set('queue_class_my_custom_queue', 'NewsFeederQueue');
 }
 
 /**
@@ -69,4 +70,5 @@ function newsfeeder_hacks_install() {
 function newsfeeder_hacks_uninstall() {
   variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS);
   variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD);
+  variable_del('queue_class_my_custom_queue');
 }
