@@ -1,0 +1,9 @@
+# Configuration generated with Drupal Compose version 1.1.6
+apache:
+  environment:
+    - USER_ID=1000
+    - GROUP_ID=1000
+php:
+  environment:
+    - USER_ID=1000
+    - GROUP_ID=1000

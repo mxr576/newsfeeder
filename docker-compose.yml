@@ -1,0 +1,171 @@
+# Configuration generated with Drupal Compose version 1.1.6
+apache:
+  extends:
+    file: host.yml
+    service: apache
+  image: dockerizedrupal/apache-2.4:1.1.2
+  hostname: apache
+  ports:
+    - "80"
+    - "443"
+  volumes_from:
+    - apache-data
+  links:
+    - php
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_PRIMARY_SERVICE=True
+    - VHOST_SERVICE_NAME=apache
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-apache-2.4/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/apache-2.4/
+apache-data:
+  image: dockerizedrupal/apache-2.4:1.1.2
+  entrypoint: ["/bin/echo", "Data only container for Apache."]
+  hostname: apache-data
+  volumes:
+    - .:/apache/data
+mysql:
+  image: dockerizedrupal/mysql:1.1.0
+  hostname: mysql
+  volumes_from:
+    - mysql-data
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=mysql
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-mysql/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/mysql/
+mysql-data:
+  image: dockerizedrupal/mysql:1.1.0
+  entrypoint: ["/bin/echo", "Data only container for Mysql."]
+  hostname: mysql-data
+  volumes:
+    - /mysql
+php:
+  extends:
+    file: host.yml
+    service: php
+  image: dockerizedrupal/php-5.6:1.1.3
+  hostname: php
+  volumes:
+    - ~/.ssh:/home/container/.ssh
+  volumes_from:
+    - apache-data
+  links:
+    - mysql
+    - mailcatcher:smtp
+    - memcached
+    - solr
+    - stanbol
+    - redis
+    - wce
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=php
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-php-5.6/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/php-5.6/
+mailcatcher:
+  image: dockerizedrupal/mailcatcher:1.1.0
+  hostname: mailcatcher
+  ports:
+    - "80"
+    - "443"
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=mailcatcher
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-mailcatcher/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/mailcatcher/
+phpmyadmin:
+  image: dockerizedrupal/phpmyadmin:1.1.1
+  hostname: phpmyadmin
+  ports:
+    - "80"
+    - "443"
+  links:
+    - mysql
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=phpmyadmin
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-phpmyadmin/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/phpmyadmin/
+memcached:
+  image: dockerizedrupal/memcached:1.1.0
+  hostname: memcached
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=memcached
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-memcached/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/memcached/
+memcachephp:
+  image: dockerizedrupal/memcachephp:1.1.1
+  hostname: memcachephp
+  ports:
+    - "80"
+    - "443"
+  links:
+    - memcached
+  environment:
+    - VHOST_PROJECT_NAME=newsfeeder
+    - VHOST_SERVICE_NAME=memcachedphp
+    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-memcachephp/master/VERSION.md
+    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/memcachephp/
+solr:
+  image: mxr576/apachesolr-4.x-drupal-docker
+  hostname: solr
+  environment:
+    - SOLR_SOLR_MEM_SIZE=512m
+    - PARTIAL_SEARCH_ENABLED=false
+  ports:
+    - "8983"
+  volumes_from:
+    - solr_data
+solr_data:
+  image: mxr576/apachesolr-4.x-drupal-docker
+  command: echo "Data only container for the Apache Solr container."
+  volumes:
+    - /opt/solr/example/solr/collection1/data
+    - /opt/solr/example/solr/collection1/conf
+    - /var/log/supervisor/
+redis:
+  image: mxr576/redis
+  hostname: redis
+  environment:
+    - REDIS_PASS=container
+  ports:
+    - "6379"
+  volumes_from:
+    - redis_data
+redis_data:
+  image: mxr576/redis
+  command: echo "Data only container for the Redis container."
+  volumes:
+    - /data
+    - /var/log/redis
+stanbol:
+  image: mxr576/stanbol
+  hostname: stanbol
+  environment:
+    - JAVA_OPTS=-Xmx1g -XX:MaxPermSize=256m
+  ports:
+    - "8080:8080"
+  volumes_from:
+    - stanbol_data
+stanbol_data:
+  image: mxr576/stanbol
+  command: echo "Data only container for the Apache Stanbol container."
+  volumes:
+    - /var/log/supervisord/
+wce:
+  image: mxr576/wce-api
+  hostname: wce
+  environment:
+    - NODE_ENV=production
+    - NODE_LOG_LEVEL=error
+  ports:
+    - "8001"
+  volumes_from:
+    - wce_data
+wce_data:
+  image: mxr576/wce-api
+  command: echo "Data only container for the WCE API container."
+  volumes:
+    - /var/log/supervisor/
