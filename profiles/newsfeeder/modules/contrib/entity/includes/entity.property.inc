@@ -272,8 +272,6 @@ function entity_property_verify_data_type($data, $type) {
       return is_numeric($data);
     case 'text':
       return is_scalar($data);
-    case 'text_formatted':
-      return  is_array($data) ? entity_property_verify_data_type($data, 'struct') : is_scalar($data);
     case 'token':
       return is_scalar($data) && preg_match('!^[a-z][a-z0-9_]*$!', $data);
     case 'boolean':
