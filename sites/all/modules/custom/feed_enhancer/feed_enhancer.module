@@ -436,6 +436,9 @@ function feed_enhancer_cron_queue_info() {
     return [
       'worker callback' => '_feed_enhancer_process_plugin_on_feed_item_queue_worker',
       'time' => 20,
+      // Avoid execution of the feed_enhancers' queue-s with cron, they should
+      // be executed directly (for example, with Jenkins).
+      'skip on cron' => TRUE,
     ];
   }, $plugins);
 }
@@ -487,8 +490,15 @@ function _feed_enhancer_process_plugin_on_feed_item_queue_worker(array $queue_it
                 // in the current queue and this way, enforce the
                 // system to try to process this feed item again with the
                 // current Feed Enhancer.
-                if (!call_user_func([$enhancer_plugin['class'], 'processFeedItem'], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])) {
-                  throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', ['@enhancer' => $enhancer_plugin['class'], '@debug' => print_r($queue_item, TRUE)]));
+                if (!call_user_func([
+                  $enhancer_plugin['class'],
+                  'processFeedItem',
+                ], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])
+                ) {
+                  throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', [
+                    '@enhancer' => $enhancer_plugin['class'],
+                    '@debug' => print_r($queue_item, TRUE),
+                  ]));
                 }
                 // Update the Enhanced entity's info in the db.
                 feed_enhancer_update_enhanced_entity_of_entity($enhanced_entity_info, $enhancer->config, $queue_item['enhancer_plugin']);
@@ -526,7 +536,6 @@ function feed_enhancer_entity_insert($entity, $type) {
     // if ($type == 'node') {
     // $feed_importer = feeds_importer_load('feed_importer');
     // $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
-
 
     // Store the current Feed enhancer settings for this feed item.
     // We use this information to validate, whether the settings has

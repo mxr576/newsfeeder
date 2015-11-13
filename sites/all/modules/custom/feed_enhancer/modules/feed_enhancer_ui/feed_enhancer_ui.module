@@ -109,7 +109,6 @@ function feed_enhancer_ui_feed_enhancer_feed_source_settings_form_submit($form, 
  */
 function feed_enhancer_ui_feed_enhancer_settings_form(array $form, array &$form_state, FeedsConfigurable $feeds_configurable) {
   $form['#tree'] = TRUE;
-  $form['#attached']['js'][] = drupal_get_path('module', 'feed_enhancer_ui') . '/js/feed_enhancer_ui.js';
   $form['#enhancer_objects'] = [];
   $form['#feeds_configurable'] = $feeds_configurable;
   $form['#feed_enhancer'] = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feeds_configurable);
@@ -213,6 +212,8 @@ function feed_enhancer_ui_feed_enhancer_settings_form(array $form, array &$form_
     '#type' => 'submit',
     '#value' => t('Save configuration'),
   ];
+
+  $form['#attached']['js'][] = drupal_get_path('module', 'feed_enhancer_ui') . '/js/feed_enhancer_ui.js';
 
   return $form;
 }

@@ -192,7 +192,7 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
         $response->data = drupal_json_decode($response->data);
       }
       watchdog(get_called_class(), 'Full Content Proxy returned with unknown status code or error. Proxy URL: %proxy_url, requested URL: %req_url, details: <pre>@details</pre>', [
-        '%proxy_url' => $proxy_settings,
+        '%proxy_url' => $proxy_settings['proxy_address'],
         '%req_url' => $url,
         '@details' => print_r($response, TRUE),
       ], WATCHDOG_WARNING);
