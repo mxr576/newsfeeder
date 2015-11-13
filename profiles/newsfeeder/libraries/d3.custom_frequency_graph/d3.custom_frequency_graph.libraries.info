@@ -1,0 +1,6 @@
+name = D3: Custom frequency graph
+description = Custom frequency graph.
+files[js][] = d3.custom_frequency_graph.js
+files[css][] = d3.custom_frequency_graph.css
+version = 0.1
+dependencies[] = d3

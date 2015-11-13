@@ -1,0 +1,8 @@
+path.line {
+  fill: none;
+}
+
+g.ticks text,
+.axis-label {
+  font-size: 11px;
+}
