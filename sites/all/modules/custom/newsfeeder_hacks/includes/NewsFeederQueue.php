@@ -13,12 +13,14 @@ class NewsFeederQueue extends SystemQueue {
     $serialized_data = serialize($data);
     // Make sure that, if a queue item already exists, then the existing one
     // will be updated rather than a new queue item is created.
+    // Also set the expiration date of the created item to one week.
     return db_merge('queue')
       ->key(['name' => $this->name, 'data' => $serialized_data])
       ->fields([
         'name' => $this->name,
         'data' => $serialized_data,
         'created' => time(),
+        'expire' => strtotime('+ 7 days'),
       ])->execute();
   }
 }
