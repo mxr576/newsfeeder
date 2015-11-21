@@ -116,12 +116,29 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
 
     if ($feed_item_wrapper->getPropertyInfo($settings['proxy_settings']['feed_item_url_field'])) {
       if ($feed_item_wrapper->getPropertyInfo($settings['properties']['full_content'])) {
-        // Full Content successfully extracted from the feed item's URL, save
-        // it to the assigned field.
+        // If Full Content successfully extracted from the feed item's URL,
+        // then save it to the assigned field.
         if ($full_content = self::getFullContentOfUrl($feed_item_wrapper->{$settings['proxy_settings']['feed_item_url_field']}->url->value(), $settings['proxy_settings'])) {
           // Remove all non-printable characters from the string, which could
           // cause DB error on entity save.
-          $full_content = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $full_content);
+          // This regexp is originally found in the Portable UTF8 library,
+          // I've just borrowed it, because I did not need the whole library.
+          // https://github.com/voku/portable-utf8/
+          // https://github.com/voku/portable-utf8/blob/master/src/voku/helper/UTF8.php
+          // @see clean()
+          $regxp = '/
+               (
+                (?: [\x00-\x7F]                  # single-byte sequences   0xxxxxxx
+                |   [\xC2-\xDF][\x80-\xBF]       # double-byte sequences   110xxxxx 10xxxxxx
+                |   \xE0[\xA0-\xBF][\x80-\xBF]   # triple-byte sequences   1110xxxx 10xxxxxx * 2
+                |   [\xE1-\xEC][\x80-\xBF]{2}
+                |   \xED[\x80-\x9F][\x80-\xBF]
+                |   [\xEE-\xEF][\x80-\xBF]{2}
+                ){1,50}                          # ...one or more times
+               )
+               | .                                  # anything else
+               /x';
+          $full_content = preg_replace($regxp, '$1', $full_content);
           // Validate full content value.
           if ($feed_item_wrapper->{$settings['properties']['full_content']}->validate($full_content)) {
             // Set the field value.
@@ -181,10 +198,13 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
         return $data['content'];
       }
       else {
-        watchdog(get_called_class(), 'Content was not returned by the Full Content Proxy! Proxy URL: %proxy_url, requested URL: %req_url', [
+        watchdog(get_called_class(), 'No content returned by the Full Content Proxy! Proxy URL: %proxy_url, requested URL: %req_url', [
           '%proxy_url' => $proxy_settings['proxy_address'],
           '%req_url' => $url,
         ], WATCHDOG_WARNING);
+        // Full Content Proxy wasn't and won't be able to extract the content
+        // of the feed item (ex.: linked pdf files).
+        return ' ';
       }
     }
     else {
