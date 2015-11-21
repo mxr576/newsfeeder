@@ -50,6 +50,7 @@ php:
     - ~/.ssh:/home/container/.ssh
   volumes_from:
     - apache-data
+    - php-data
   links:
     - mysql
     - mailcatcher:smtp
@@ -63,6 +64,12 @@ php:
     - VHOST_SERVICE_NAME=php
     - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-php-5.6/master/VERSION.md
     - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/php-5.6/
+php-data:
+  image: dockerizedrupal/php-5.6:1.1.3
+  entrypoint: ["/bin/echo", "Data only container for PHP."]
+  hostname: php-data
+  volumes:
+    - /usr/local/src
 mailcatcher:
   image: dockerizedrupal/mailcatcher:1.1.0
   hostname: mailcatcher
@@ -108,6 +115,39 @@ memcachephp:
     - VHOST_SERVICE_NAME=memcachedphp
     - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-memcachephp/master/VERSION.md
     - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/memcachephp/
+jenkins:
+  image: mxr576/docker-jenkins
+  extends:
+    file: host.yml
+    service: jenkins
+  hostname: jenkins
+  ports:
+    - "80"
+    - "443"
+  links:
+    - apache
+    - mysql
+    - php
+  volumes_from:
+    - apache-data
+    - jenkins-data
+    - php-data
+  cap_add:
+    - NET_ADMIN
+  environment:
+    SERVER_NAME: localhost
+    TIMEZONE: Etc/UTC
+    TIMEOUT: 300
+    PROTOCOLS: https,http
+    OPENVPN: Off
+    MYSQL: On
+    DRUSH: /usr/local/src/drush8/drush
+jenkins-data:
+  image: mxr576/docker-jenkins
+  entrypoint: ["/bin/echo", "Data only container for Jenkins."]
+  hostname: jenkins-data
+  volumes:
+    - /jenkins
 solr:
   image: mxr576/apachesolr-4.x-drupal-docker
   hostname: solr

@@ -7,3 +7,7 @@ php:
   environment:
     - USER_ID=1000
     - GROUP_ID=1000
+jenkins:
+  environment:
+    - USER_ID=1000
+    - GROUP_ID=1000
