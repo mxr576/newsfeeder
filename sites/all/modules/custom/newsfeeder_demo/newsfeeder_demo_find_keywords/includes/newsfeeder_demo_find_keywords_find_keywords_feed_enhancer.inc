@@ -185,7 +185,7 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
         }
       }
       // TRUE, if full content retrieved and the Feed item's value
-      // successfully updated with it, else FALSE;
+      // successfully updated with it, else FALSE.
       return $keywords && $feed_item_wrapper->save();
     }
     else {
@@ -306,5 +306,4 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
 
     return FALSE;
   }
-
 }
