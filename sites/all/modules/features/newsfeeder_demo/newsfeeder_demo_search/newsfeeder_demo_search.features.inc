@@ -46,7 +46,7 @@ function newsfeeder_demo_search_default_search_api_index() {
         "created" : { "type" : "date" },
         "field_feed_item_authors" : { "type" : "integer", "entity_type" : "taxonomy_term" },
         "field_feed_item_categories" : { "type" : "list\\u003Cinteger\\u003E", "entity_type" : "taxonomy_term" },
-        "field_feed_item_content:value" : { "type" : "text", "boost" : "3.0" },
+        "field_feed_item_content" : { "type" : "text", "boost" : "3.0" },
         "field_feed_item_keywords" : { "type" : "list\\u003Cinteger\\u003E", "entity_type" : "taxonomy_term" },
         "field_feed_item_stanbol_orgs" : { "type" : "list\\u003Cinteger\\u003E", "entity_type" : "taxonomy_term" },
         "field_feed_item_stanbol_people" : { "type" : "list\\u003Cinteger\\u003E", "entity_type" : "taxonomy_term" },

@@ -127,7 +127,7 @@ function newsfeeder_demo_search_views_default_views() {
     1 => 0,
   );
   $handler->display->display_options['filters']['search_api_views_fulltext']['fields'] = array(
-    'field_feed_item_content:value' => 'field_feed_item_content:value',
+    'field_feed_item_content' => 'field_feed_item_content',
     'title' => 'title',
   );
   /* Filter criterion: Indexed Node: Date created */
