@@ -99,9 +99,34 @@ function newsfeeder_demo_cts_field_default_field_instances() {
     'display' => array(
       'default' => array(
         'label' => 'hidden',
-        'module' => 'text',
-        'settings' => array(),
-        'type' => 'text_default',
+        'module' => 'advanced_text_formatter',
+        'settings' => array(
+          'allowed_html' => array(
+            0 => 'a',
+            1 => 'b',
+            2 => 'br',
+            3 => 'dd',
+            4 => 'dl',
+            5 => 'dt',
+            6 => 'em',
+            7 => 'i',
+            8 => 'li',
+            9 => 'ol',
+            10 => 'p',
+            11 => 'strong',
+            12 => 'u',
+            13 => 'ul',
+          ),
+          'autop' => 0,
+          'ellipsis' => 1,
+          'filter' => 'drupal',
+          'format' => 'filtered_html',
+          'token_replace' => 0,
+          'trim_length' => 0,
+          'use_summary' => 0,
+          'word_boundary' => 1,
+        ),
+        'type' => 'advanced_text',
         'weight' => 0,
       ),
       'teaser' => array(
@@ -142,7 +167,7 @@ function newsfeeder_demo_cts_field_default_field_instances() {
     'label' => 'Content',
     'required' => 1,
     'settings' => array(
-      'text_processing' => 1,
+      'text_processing' => 0,
       'user_register_form' => FALSE,
     ),
     'widget' => array(
