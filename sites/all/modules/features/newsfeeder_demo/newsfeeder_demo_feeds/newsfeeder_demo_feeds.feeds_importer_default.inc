@@ -69,6 +69,16 @@ function newsfeeder_demo_feeds_feeds_importer_default() {
             'target' => 'field_feed_item_categories',
             'unique' => FALSE,
           ),
+          6 => array(
+            'source' => 'url',
+            'target' => 'url',
+            'unique' => 1,
+          ),
+          7 => array(
+            'source' => 'guid',
+            'target' => 'guid',
+            'unique' => 1,
+          ),
         ),
         'update_existing' => '0',
         'update_non_existent' => 'skip',
