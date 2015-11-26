@@ -20,7 +20,6 @@ class NewsFeederQueue extends SystemQueue {
         'name' => $this->name,
         'data' => $serialized_data,
         'created' => time(),
-        'expire' => strtotime('+ 7 days'),
       ])->execute();
   }
 }

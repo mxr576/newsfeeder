@@ -86,9 +86,8 @@ function newsfeeder_hacks_feed_source_node_form_validate($form, &$form_state) {
     // Try to set the Title of the node automatically.
     $response = drupal_http_request($form_state['values']['feeds']['FeedsHTTPFetcher']['source']);
     if ($response->code == 200) {
-      $title = preg_match(NEWSFEEDER_HACKS_TITLE_REGEXP, $response->data, $matches) ? $matches[1] : NULL;
-      if (!empty($title) && is_string($title) && strlen($title) <= 100) {
-        $form_state['values']['title'] = htmlspecialchars_decode($title);
+      if ($title = _newsfeeder_hacks_get_title_of_feed_source($response->data)) {
+        $form_state['values']['title'] = $title;
       }
       else {
         form_error($form['title'], t('Form title can not be set automatically, please set it manually!'));
@@ -157,11 +156,8 @@ function newsfeeder_hacks_delete_unpublished_feed_items_cron() {
       // Get all unpublished feed items of the feed importer.
       $feed_items = newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($importer);
       if (!empty($feed_items)) {
-        $feed_items = array_keys($feed_items);
-        foreach ($feed_items as $nid) {
-          // Add the feed item node to the queue.
-          $queue->createItem($nid);
-        }
+        $nids = array_keys($feed_items);
+        $queue->createItem($nids);
       }
     });
   }
@@ -209,11 +205,11 @@ function newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($impor
 function newsfeeder_hacks_cron_queue_info() {
   $queues = [];
   $queues[NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE] = [
-    'worker callback' => '_newsfeeder_hacks_delete_unpublished_feed_items_queue_worker_queue_worker',
+    'worker callback' => '_newsfeeder_hacks_delete_unpublished_feed_items_queue_worker',
     'time' => 15,
   ];
   $queues[NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE] = [
-    'worker callback' => '__newsfeeder_hacks_remove_term_references_queue_worker',
+    'worker callback' => '_newsfeeder_hacks_remove_term_references_queue_worker',
     'time' => 15,
   ];
   return $queues;
@@ -227,7 +223,7 @@ function newsfeeder_hacks_cron_queue_info() {
  *
  * @see newsfeeder_hacks_cron_queue_info()
  */
-function __newsfeeder_hacks_remove_term_references_queue_worker($nid) {
+function _newsfeeder_hacks_remove_term_references_queue_worker($nid) {
   // Gather the terms which needs to be removed from this node.
   $terms_to_delete = db_select('feeds_item_deleted_terms', 'fidt')
     ->condition('nid', $nid)
@@ -262,13 +258,52 @@ function __newsfeeder_hacks_remove_term_references_queue_worker($nid) {
 /**
  * Queue worker callback, which deletes the feed node with the given id.
  *
- * @param int $nid
- *   Node id of the feed item.
+ * @param array $nids
+ *   Array of node ids of the feed item nodes.
  *
  * @see newsfeeder_hacks_cron_queue_info()
  */
-function _newsfeeder_hacks_delete_unpublished_feed_items_queue_worker($nid) {
-  node_delete($nid);
+function _newsfeeder_hacks_delete_unpublished_feed_items_queue_worker(array $nids) {
+  node_delete_multiple($nids);
+}
+
+/**
+ * Helper function which extracts the title of the feeds source.
+ *
+ * @param string $body
+ *   XML body of the feed source.
+ *
+ * @return bool|string
+ *   The title of the feed source, or FALSE.
+ */
+function _newsfeeder_hacks_get_title_of_feed_source($body) {
+  if (!empty($body)) {
+    $doc = new DOMDocument();
+    if ($doc->loadXML($body, LIBXML_NOCDATA | LIBXML_NOWARNING | LIBXML_NOERROR)) {
+      $xml = new DOMXPath($doc);
+      // Try to parse the body as a simple RSS feed.
+      $items = $xml->evaluate('//rss/channel/title');
+      if ($items->length !== 0) {
+        return $items->item(0)->nodeValue;
+      }
+      // Register additional namespaces for RDF feeds.
+      $xml->registerNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+      $xml->registerNamespace('dc', 'http://purl.org/dc/elements/1.1/');
+      $xml->registerNamespace('rss', 'http://purl.org/rss/1.0/');
+      $items = $xml->evaluate('//rdf:RDF/rss:channel/rss:title');
+      if ($items->length !== 0) {
+        return $items->item(0)->nodeValue;
+      }
+      // Register additional namespaces for ATOM feeds.
+      $xml->registerNamespace('atom', 'http://www.w3.org/2005/Atom');
+      $items = $xml->evaluate('//atom:feed/atom:title');
+      if ($items->length !== 0) {
+        return $items->item(0)->nodeValue;
+      }
+    }
+  }
+
+  return FALSE;
 }
 
 /**
@@ -300,7 +335,7 @@ function newsfeeder_hacks_delete_term_references_on_feed_items(stdClass $term) {
         foreach ($fields_by_vocab[$term->vocabulary_machine_name] as $field) {
           $nids = newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, $term->tid);
           // Add the found nodes to the cleaner queue.
-          array_walk($nids, function ($nid) use ($queue, $field, $term) {
+          array_walk($nids, function ($nid) use ($queue, $field, $term, &$success) {
             $queue->createItem($nid);
             // Store the log entry about the removed term.
             // We store the deleted terms in a separated log table, because
