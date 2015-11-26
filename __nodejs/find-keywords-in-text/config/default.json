@@ -1,0 +1,7 @@
+{
+  "port": 9999,
+  "max-threads" : 0,
+  "allowed-origins" : [
+    "*"
+  ]
+}
