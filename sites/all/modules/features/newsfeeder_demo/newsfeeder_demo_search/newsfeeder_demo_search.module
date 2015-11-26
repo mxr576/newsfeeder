@@ -14,10 +14,9 @@ function newsfeeder_demo_search_form_views_exposed_form_alter(&$form, $form_stat
   if ($view->name == 'newsfeeder_demo_feeds_search') {
     // However the format is specified in $form['from']['#date_format']
     // the date field only accepts the value in this format: Y-m-d.
-    // $form['from']['#default_value'] = date('Y-m-d', strtotime('-7 days'));
-    // $form['to']['#default_value'] = date('Y-m-d', strtotime('now'));
-
-    // Set the default value of the From - To filters this way, because
+    $form['from']['#default_value'] = date('Y-m-d', strtotime('-7 days'));
+    $form['to']['#default_value'] = date('Y-m-d', strtotime('now'));
+    // Set the default value of the From - To filters this way too, because
     // we always need for the date values in the $_GET array for
     // displaying the statistics link.
     if (!isset($form_state['input']['from']['date'])) {
