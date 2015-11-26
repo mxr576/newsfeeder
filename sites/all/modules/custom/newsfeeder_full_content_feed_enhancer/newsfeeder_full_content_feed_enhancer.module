@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Module file for NewsFeeder Full Content Feed Enhancer module.
+ */
+
+/**
+ * Implements hook_feed_enhancer_plugins().
+ */
+function newsfeeder_full_content_feed_enhancer_feed_enhancer_plugins() {
+  $plugins = [];
+  $plugins['feeder_enhancer_api_full_content_enhancer'] = [
+    'name' => t('Full Content Enhancer'),
+    'description' => t("Retrieve the full content of the feed item. This could be useful, because the feed items usually contains only a trimmed version of the original page's content."),
+    'class' => 'FullContentFeedItemEnhancerPlugin',
+    'weight' => -10,
+  ];
+
+  return $plugins;
+}

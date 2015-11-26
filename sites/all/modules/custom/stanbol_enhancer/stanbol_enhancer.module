@@ -267,11 +267,11 @@ function stanbol_enhancer_entity_presave($entity, $type) {
     'bundle' => $entity_wrapper->getBundle(),
     'id' => $entity_wrapper->getIdentifier(),
   ];
-  // To prevent errors on entity insert, we need to check here, if this
+  // To prevent errors on entity insert, we need to check here, whether this
   // entity save was triggered by the
   // stanbol_enhancer_enhance_with_entity_wrapper() or not. If yes, then the
   // entity already exists, (since the hook_entity_insert() was called which
-  // called the mentioned function,) so the is_new flag should be
+  // called the mentioned function too) so the is_new flag should be
   // removed from this entity.
   if ($enhancer_processed_entity === $saved_entity) {
     if ($entity_wrapper->getPropertyInfo('is_new')) {
@@ -281,7 +281,7 @@ function stanbol_enhancer_entity_presave($entity, $type) {
 }
 
 /**
- * Enhance and entity immediatelly or add it to the STANBOL_ENHANCER_QUEUE.
+ * Enhance and entity immediately or add it to the STANBOL_ENHANCER_QUEUE.
  *
  * @param object $entity
  *   Entity object.
@@ -365,10 +365,10 @@ function stanbol_enhancer_enhance_with_entity_wrapper(EntityMetadataWrapper $ent
       return FALSE;
     }
     if (is_array(($result = stanbol_enhancer_enhance_content($content, $config)))) {
-      // Iterate throw the enabled result processors.
+      // Iterate over the enabled result processors.
       foreach ($processors as $name => $processor) {
         if (!empty($result[$name])) {
-          // Check, if the entity has the field which assigned to the
+          // Check, if the entity still has the field which assigned to the
           // current processor.
           if ($field_prop = $entity_wrapper->getPropertyInfo($stanbol_enhancer_settings['mapping'][$name])) {
             // Check if the current processors's value callback exists.
@@ -483,7 +483,7 @@ function stanbol_enhancer_stanbol_enhancer_result_processor_info() {
 
   $processors['language'] = [
     'label' => t('Language'),
-    'description' => t("Set the entity's language property to the detected language. Only works on those entities which have language attribute."),
+    'description' => t("Set the entity's language property to the detected language. Only works on those entities which have language properties."),
     'type' => 'token',
     'conditions' => [
       'schema field' => 'language',
@@ -1124,4 +1124,18 @@ function _stanbol_enhancer_geofield_value_callback(array $coordinates, array $fi
   }, $coordinates);
 
   return $coordinates;
+}
+
+/**
+ * Implements hook_feed_enhancer_plugins().
+ */
+function stanbol_enhancer_feed_enhancer_plugins() {
+  $plugins = [];
+  $plugins['feeder_enhancer_api_stanbol_enhancer'] = [
+    'name' => t('Stanbol Enhancer'),
+    'description' => t("Find places, organizations and people in the feed item's body. Also detect the language of the content."),
+    'class' => 'StanbolFeedItemEnhancerPlugin',
+    'weight' => 0,
+  ];
+  return $plugins;
 }

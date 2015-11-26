@@ -10,7 +10,7 @@
  * Enhancer plugin, which finds the keywords in the content of the feed item
  * with the help of a dummy Node JS application.
  */
-class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
+class FindKeywordsNodeFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
   /**
    * {@inheritdoc}
    */
@@ -169,7 +169,7 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
       $keywords_found = self::getKeywordsFromTheText($text, $keywords, $settings['proxy_settings']);
       if ($keywords_found) {
         $field_info = field_info_field($settings['properties']['keywords']);
-        $keywords_found_tids = self::getTaxonomyTermReferenceFieldValues($keywords_found, $field_info);
+        $keywords_found_tids = static::getTaxonomyTermReferenceFieldValues($keywords_found, $field_info);
         // Validate full content value.
         if ($feed_item_wrapper->{$settings['properties']['keywords']}->validate($keywords_found_tids)) {
           // Set the field value, but before that, remove all non-printable
@@ -291,7 +291,7 @@ class FindKeywordsFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
         $keywords_found = array_map(function ($item) {
           return $item['keyword'];
         }, $data['keywords']);
-        return $keywords_found;
+        return array_unique($keywords_found);
       }
     }
     else {

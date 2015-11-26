@@ -6,14 +6,14 @@
  */
 
 /**
- * Implements hook_feed_enhancer_plugin_info().
+ * Implements hook_feed_enhancer_plugins().
  */
-function newsfeeder_demo_find_keywords_feed_enhancer_enhancer_plugin_info() {
+function newsfeeder_demo_find_keywords_feed_enhancer_plugins() {
   $plugins = [];
   $plugins['newsfeeder_demo_find_keywords_find_keywords_feed_enhancer'] = [
     'name' => t('Find Keywords'),
     'description' => t('Find keywords from a vocabulary in the content of the Feed item.'),
-    'class' => 'FindKeywordsFeedItemEnhancerPlugin',
+    'class' => 'FindKeywordsNodeFeedItemEnhancerPlugin',
     'weight' => 0,
   ];
   return $plugins;

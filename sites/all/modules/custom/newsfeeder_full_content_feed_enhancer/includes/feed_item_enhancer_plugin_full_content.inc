@@ -10,7 +10,7 @@
  * Retrieve the full content of the feed item from the feed item's source
  * link.
  */
-class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
+class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
   /**
    * {@inheritdoc}
    */

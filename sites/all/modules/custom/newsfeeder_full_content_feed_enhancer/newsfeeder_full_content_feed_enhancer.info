@@ -1,0 +1,9 @@
+name = NewsFeeder: Full Content Feed Enhancer
+description = Full Content Feed Enhancer plugin for Newsfeeder.
+package = NewsFeeder
+core = 7.x
+version = 7.x-1.x
+
+dependencies[] = feed_enhancer
+
+files[] = includes/feed_item_enhancer_plugin_full_content.inc
