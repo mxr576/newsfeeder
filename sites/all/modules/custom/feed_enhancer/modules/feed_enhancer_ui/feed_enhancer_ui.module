@@ -130,6 +130,7 @@ function feed_enhancer_ui_feed_enhancer_settings_form(array $form, array &$form_
           '@class' => $enhancer['class'],
         ], WATCHDOG_WARNING);
         unset($form['#enhancer_objects'][$name]);
+        unset($enhancer_plugins[$name]);
         continue;
       }
     }

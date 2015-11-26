@@ -79,30 +79,17 @@ function feed_enhancer_feeds_source_enhancer_entity_label_callback($entity, $ent
 }
 
 /**
- * Implements hook_feed_enhancer_plugin_info().
+ * Implements hook_feed_enhancer_plugins().
  */
-function feed_enhancer_feed_enhancer_enhancer_plugin_info() {
-  $plugins = [];
-  $plugins['feeder_enhancer_api_full_content_enhancer'] = [
-    'name' => t('Full Content Enhancer'),
-    'description' => t("Retrieve the full content of the feed item. This could be useful, because the feed items usually contains only a trimmed version of the original page's content."),
-    'class' => 'FullContentFeedItemEnhancerPlugin',
-    'weight' => -10,
-  ];
-  $plugins['feeder_enhancer_api_stanbol_enhancer'] = [
-    'name' => t('Stanbol Enhancer'),
-    'description' => t("Find places, organizations and people in the feed item's body. Also detect the language of the content."),
-    'class' => 'StanbolFeedItemEnhancerPlugin',
-    'weight' => 0,
-  ];
-
-  return $plugins;
+function feed_enhancer_feed_enhancer_plugins() {
+  // TODO Add api.php documentation to the module.
+  return [];
 }
 
 /**
  * Returns a list of all available Feed Enhancer plugins.
  *
- * @see hook_feed_enhancer_plugin_info()
+ * @see hook_feed_enhancer_plugins()
  *
  * @return array
  *   An array of all available Feed enhancer plugins, keyed by the plugin
@@ -111,7 +98,7 @@ function feed_enhancer_feed_enhancer_enhancer_plugin_info() {
 function feed_enhancer_feed_enhancer_plugin_info() {
   $plugins = &drupal_static(__FUNCTION__);
   if (!isset($plugins)) {
-    $plugins = module_invoke_all('feed_enhancer_enhancer_plugin_info');
+    $plugins = module_invoke_all('feed_enhancer_plugins');
     // Fill optional settings with default values.
     foreach ($plugins as $id => $callback) {
       $plugins[$id] += ['weight' => 0];

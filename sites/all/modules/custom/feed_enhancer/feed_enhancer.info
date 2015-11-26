@@ -8,5 +8,5 @@ dependencies[] = feeds
 
 files[] = includes/feed_enhancer_entity.inc
 files[] = includes/feed_item_enhancer_plugin.inc
-files[] = includes/feed_item_enhancer_plugin_stanbol.inc
-files[] = includes/feed_item_enhancer_plugin_full_content.inc
+files[] = includes/node_feed_item_enhancer_plugin.inc
+
