@@ -124,7 +124,7 @@ function feed_enhancer_ui_feed_enhancer_settings_form(array $form, array &$form_
       }
       $form['#enhancer_objects'][$name] = new $enhancer['class']($feeds_configurable, $name, $settings[$name]);
 
-      if (!($form['#enhancer_objects'][$name] instanceof FeedItemEnhancerPluginPluginInterface)) {
+      if (!($form['#enhancer_objects'][$name] instanceof FeedItemEnhancerPluginInterface)) {
         watchdog('feed_enhancer', 'Enhancer @callback callback specifies illegal callback class @class.', [
           '@callback' => $name,
           '@class' => $enhancer['class'],
@@ -268,7 +268,7 @@ function feed_enhancer_ui_feed_enhancer_settings_form_submit($form, &$form_state
   // Sort the enhancer plugins by their weights here.
   uasort($values['enhancers'], 'feed_enhancer_ui_plugin_sort');
 
-  // There were not any Feed Enhancer belonged to this FeedsConfigurable, so
+  // There was not any Feed Enhancer belonged to this FeedsConfigurable, so
   // create a new one.
   if (!$form['#feed_enhancer']) {
     $form['#feed_enhancer'] = feed_enhancer_create_feed_enhancer_for_feeds_configurable($form['#feeds_configurable'], $values['enhancers']);

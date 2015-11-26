@@ -6,11 +6,11 @@
  */
 
 /**
- * Interface FeedItemEnhancerPluginPluginInterface.
+ * Interface FeedItemEnhancerPluginInterface.
  *
  * Base interface of all Feed Item Enhancer plugins.
  */
-interface FeedItemEnhancerPluginPluginInterface {
+interface FeedItemEnhancerPluginInterface {
 
   /**
    * Construct a FeedItemEnhancerPlugin.
@@ -79,7 +79,7 @@ interface FeedItemEnhancerPluginPluginInterface {
    *   Settings of the plugin.
    *
    * @return bool
-   *   TRUE on succes, else FALSE.
+   *   TRUE on success, else FALSE.
    */
   public static function processFeedItem(EntityMetadataWrapper $feed_item_wrapper, array $settings);
 
@@ -90,17 +90,39 @@ interface FeedItemEnhancerPluginPluginInterface {
  *
  * Base class of the Feed item enhancer plugins.
  */
-abstract class FeedItemEnhancerPlugin implements FeedItemEnhancerPluginPluginInterface {
+abstract class FeedItemEnhancerPlugin implements FeedItemEnhancerPluginInterface {
 
+  /**
+   * The Feeds Importer which this Enhancer Plugin belongs to.
+   *
+   * @var null|FeedsImporter
+   */
   protected $feedsImporter;
+  /**
+   * The Feeds Source which this Enhancer Plugin belongs to.
+   *
+   * @var null|FeedsSource
+   */
   protected $feedsSource;
+  /**
+   * The machine name of the Enhancer Plugin.
+   *
+   * @var string
+   */
   protected $machineName;
+  /**
+   * The settings of the Enhancer Plugin.
+   *
+   * @var array
+   */
   protected $settings;
 
   /**
    * {@inheritdoc}
    */
   public function __construct(FeedsConfigurable $feeds_configurable, $machine_name, array $settings = []) {
+    // Set the feedImporter or the feedSource member of the class based on the
+    // type of the passed FeedsConfigurable object.
     if ($feeds_configurable instanceof FeedsImporter) {
       $this->feedsImporter = $feeds_configurable;
       $this->feedsSource = NULL;
@@ -111,7 +133,7 @@ abstract class FeedItemEnhancerPlugin implements FeedItemEnhancerPluginPluginInt
     }
     $this->machineName = $machine_name;
 
-    // Initialize the settings array.
+    // Make sure that the settings array initialized properly.
     $settings += ['properties' => []];
     $this->settings = $settings;
   }
@@ -151,9 +173,11 @@ abstract class FeedItemEnhancerPlugin implements FeedItemEnhancerPluginPluginInt
    *   Name of the bundle.
    */
   protected function getFeedImporterTargetNodeBundle() {
-    $config = $this->feedsImporter->getConfig();
-    if (!empty($config['processor']['config']['bundle'])) {
-      return $config['processor']['config']['bundle'];
+    if (!is_null($this->feedsImporter)) {
+      $config = $this->feedsImporter->getConfig();
+      if (!empty($config['processor']['config']['bundle'])) {
+        return $config['processor']['config']['bundle'];
+      }
     }
 
     return FALSE;

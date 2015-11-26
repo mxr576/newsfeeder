@@ -208,6 +208,7 @@ class FullContentFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
       }
     }
     else {
+      // Decode the returned error information.
       if (!empty($response->data)) {
         $response->data = drupal_json_decode($response->data);
       }

@@ -431,7 +431,7 @@ function feed_enhancer_update_enhanced_entity_of_entity(Entity $enhanced_entity,
 function feed_enhancer_cron_queue_info() {
   $plugins = feed_enhancer_feed_enhancer_plugin_info();
 
-  // Create a individual queue for all available enhancer plugin.
+  // Create an individual queue for all available enhancer plugin.
   return array_map(function ($plugin) {
     return [
       'worker callback' => '_feed_enhancer_process_plugin_on_feed_item_queue_worker',
@@ -462,16 +462,10 @@ function _feed_enhancer_process_plugin_on_feed_item_queue_worker(array $queue_it
   // Validate that all necessary data is provided in the queue item.
   if (!empty($queue_item['enhancer_plugin']) && !empty($queue_item['entity_type']) && !empty($queue_item['entity_id']) && !empty($queue_item['bundle'])) {
     $entity_wrapper = entity_metadata_wrapper($queue_item['entity_type'], $queue_item['entity_id']);
-
-    // DEBUG ONLY
-    // TODO REMOVE IT!
-    // $feed_importer = feeds_importer_load('feed_importer');
-    // $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
-
     if ($enhancer = feed_enhancer_get_enhancer_of_this_entity_through_wrapper($entity_wrapper)) {
       if ($enhanced_entity_info = feed_enhancer_load_enhanced_entity_from_entity_info($queue_item['entity_type'], $queue_item['bundle'], $queue_item['entity_id'])) {
         // Check if the enhancer settings of this entity does not changed
-        // since it was added to the queue.
+        // since when it was added to the queue.
         if ($enhancer->config === $enhanced_entity_info->settings['plugins_configs']) {
           // Check, if the current Feed enhancer plugin's settings exists in the
           // currently processed feed item's settings, and the current plugin
@@ -490,11 +484,7 @@ function _feed_enhancer_process_plugin_on_feed_item_queue_worker(array $queue_it
                 // in the current queue and this way, enforce the
                 // system to try to process this feed item again with the
                 // current Feed Enhancer.
-                if (!call_user_func([
-                  $enhancer_plugin['class'],
-                  'processFeedItem',
-                ], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])
-                ) {
+                if (!call_user_func([$enhancer_plugin['class'], 'processFeedItem'], $entity_wrapper, $enhanced_entity_info->settings['plugins_configs'][$queue_item['enhancer_plugin']])) {
                   throw new Exception(format_string('@enhancer plugin failed to process the feed item. See the log for more details! Debug: <pre>@debug</pre>', [
                     '@enhancer' => $enhancer_plugin['class'],
                     '@debug' => print_r($queue_item, TRUE),
@@ -530,13 +520,6 @@ function feed_enhancer_entity_insert($entity, $type) {
   $entity_wrapper = entity_metadata_wrapper($type, $entity);
   // If this entity has a Feed enhancer.
   if ($enhancer = feed_enhancer_get_enhancer_of_this_entity_through_wrapper($entity_wrapper)) {
-
-    // DEBUG ONLY
-    // TODO REMOVE IT.
-    // if ($type == 'node') {
-    // $feed_importer = feeds_importer_load('feed_importer');
-    // $enhancer = feed_enhancer_load_feed_enhancer_of_feeds_configurable($feed_importer);
-
     // Store the current Feed enhancer settings for this feed item.
     // We use this information to validate, whether the settings has
     // changed (ex.: the order of the enhancer plugins changed) while the feed
@@ -607,7 +590,7 @@ function feed_enhancer_add_to_queue($enhancer_plugin, $entity_type, $bundle, $en
 }
 
 /**
- * Return the Feed importer id of the Feed source from the feed nid.
+ * Returns the Feed importer id of the Feed source from the feed nid.
  *
  * @param int $feed_nid
  *   Node ID of the Feed source.

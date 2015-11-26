@@ -31,7 +31,8 @@ class StanbolFeedItemEnhancerPlugin extends FeedItemEnhancerPlugin {
     }
     // Retrieve the Stanbol Enhancer configuration form.
     $form['stanbol_enhancer'] += _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_generate_form('node', $this->getFeedImporterTargetNodeBundle(), $form['#processors'], $this->settings['stanbol_enhancer']);
-    // Alter some generated form elements.
+    // Alter the original form elements from the Stanbol Enhancer
+    // configuration form.
     $form['stanbol_enhancer']['enabled'] = [
       '#type' => 'value',
       '#value' => TRUE,
