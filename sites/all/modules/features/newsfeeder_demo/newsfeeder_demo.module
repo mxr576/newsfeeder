@@ -95,7 +95,7 @@ function _newsfeeder_demo_import_feed_sources_batch_operation($url, array &$cont
         ];
         $node = entity_create('node', $values);
         // Set the feed source node's title, if the parsed title looks valid.
-        if ($title = _newsfeeder_demo_get_title_of_feed_source($response->data)) {
+        if ($title = _newsfeeder_hacks_get_title_of_feed_source($response->data)) {
           $node->title = $title;
         }
         else {
@@ -144,40 +144,4 @@ function _newsfeeder_demo_import_feed_sources_batch_finished($success, $results,
   else {
     drupal_set_message(t('Import process finished with problems. Check the log for more details!'), 'error');
   }
-}
-
-/**
- * Helper function which extracts the title of the feeds source.
- *
- * @param string $body
- *   XML body of the feed source.
- *
- * @return bool|string
- *   The title of the feed source, or FALSE.
- */
-function _newsfeeder_demo_get_title_of_feed_source($body) {
-  $doc = new DOMDocument();
-  $doc->loadXML($body);
-  $xml = new DOMXPath($doc);
-  // Try to parse the body as a simple RSS feed.
-  $items = $xml->evaluate('//rss/channel/title');
-  if ($items->length !== 0) {
-    return $items->item(0)->nodeValue;
-  }
-  // Register additional namespaces for RDF feeds.
-  $xml->registerNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
-  $xml->registerNamespace('dc', 'http://purl.org/dc/elements/1.1/');
-  $xml->registerNamespace('rss', 'http://purl.org/rss/1.0/');
-  $items = $xml->evaluate('//rdf:RDF/rss:channel/rss:title');
-  if ($items->length !== 0) {
-    return $items->item(0)->nodeValue;
-  }
-  // Register additional namespaces for ATOM feeds.
-  $xml->registerNamespace('atom', 'http://www.w3.org/2005/Atom');
-  $items = $xml->evaluate('//atom:feed/atom:title');
-  if ($items->length !== 0) {
-    return $items->item(0)->nodeValue;
-  }
-
-  return FALSE;
 }
