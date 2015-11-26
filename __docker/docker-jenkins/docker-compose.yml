@@ -1,0 +1,33 @@
+jenkins:
+  image: mxr576/docker-jenkins
+  hostname: jenkins
+  restart: always
+  ports:
+    - "801:80"
+    - "4431:443"
+  volumes_from:
+    - jenkins-data
+  cap_add:
+    - NET_ADMIN
+  environment:
+    SERVER_NAME: localhost
+    TIMEZONE: Etc/UTC
+    TIMEOUT: 300
+    PROTOCOLS: https,http
+    OPENVPN: Off
+    OPENVPN_DEVICE: TAP
+    OPENVPN_HOST:
+    OPENVPN_PORT: 1194
+    OPENVPN_USERNAME:
+    OPENVPN_PASSWORD:
+    OPENVPN_CA_CERTIFICATE:
+    MYSQL: Off
+    MYSQL_HOST: 
+    MYSQL_PORT: 3306
+    USER_ID: 1000
+    GROUP_ID: 1000
+jenkins-data:
+  image: mxr576/docker-jenkins
+  hostname: jenkins-data
+  volumes:
+    - /jenkins

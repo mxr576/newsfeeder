@@ -1,0 +1,18 @@
+solr:
+  image: mxr576/apachesolr-4.x-drupal-docker
+  hostname: solr
+  restart: always
+  environment:
+    - SOLR_SOLR_MEM_SIZE=512m
+    - PARTIAL_SEARCH_ENABLED=false
+  ports:
+    - "8983:8983"
+  volumes_from:
+    - solr_data
+solr_data:
+  image: mxr576/apachesolr-4.x-drupal-docker
+  command: echo "Data only container for the Apache Solr container."
+  volumes:
+    - /opt/solr/example/solr/collection1/data
+    - /opt/solr/example/solr/collection1/conf
+    - /var/log/supervisor/
