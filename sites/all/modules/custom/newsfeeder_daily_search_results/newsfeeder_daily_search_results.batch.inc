@@ -28,7 +28,7 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_
     $context['message'] = t('Aggregated search result with all keywords successfully processed.');
     $context['sandbox']['progress']++;
   }
-  $context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1);
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
 }
 
 /**
@@ -55,7 +55,7 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_filter_s
     $context['message'] = t('Aggregated search result with all filters successfully processed.');
     $context['sandbox']['progress']++;
   }
-  $context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1);
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
 }
 
 /**
@@ -101,7 +101,9 @@ function _newsfeeder_daily_search_results_export_merge_keyword_search_results_ba
     $context['sandbox']['progress']++;
   }
 
-  if ($context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1)) {
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+
+  if ($context['finished']) {
     // Clean up unnecessary arrays.
     unset($context['results']['results']['keywords']);
     unset($context['results']['results']['keywords-aggregated']);
@@ -138,7 +140,9 @@ function _newsfeeder_daily_search_results_export_merge_filter_search_results_bat
     $context['sandbox']['progress']++;
   }
 
-  if ($context['finished'] = ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1)) {
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+
+  if ($context['finished']) {
     unset($context['results']['results']['filters']);
     unset($context['results']['results']['filters-aggregated']);
   }
@@ -156,7 +160,7 @@ function _newsfeeder_daily_search_results_export_merge_aggregated_keywords_and_f
   $context['results']['csv_content'] = array_merge_recursive($context['results']['csv_content'], $context['results']['results']['keywords-filters-aggregated']);
   $context['message'] = t("Aggregated keywords and filters result processed for the export.");
   unset($context['results']['results']['keywords-filters-aggregated']);
-  $context['finished'] = TRUE;
+  $context['finished'] = 1;
 }
 
 /**
@@ -179,7 +183,10 @@ function _newsfeeder_daily_search_results_export_generate_date_columns_batch_ope
     $context['message'] = t('@count date successfully formatted for the export.', ['@count' => $context['sandbox']['progress']]);
     $context['sandbox']['progress']++;
   }
-  if ($context['finished'] = $context['sandbox']['max'] == 0 || ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1)) {
+
+  $context['finished'] = $context['sandbox']['max'] == 0 || ($context['sandbox']['progress'] / $context['sandbox']['max'] == 1);
+
+  if ($context['finished']) {
     $context['results']['csv_content'] = array_merge_recursive($context['sandbox']['formatted_dates'], $context['results']['csv_content']);
   }
 }

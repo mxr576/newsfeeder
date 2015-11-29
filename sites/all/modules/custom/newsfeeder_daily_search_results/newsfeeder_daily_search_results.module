@@ -139,7 +139,7 @@ function newsfeeder_daily_search_results_build_link_to_statistics_page($searcher
 }
 
 /**
- * Run a query on Solr which calculates the daily search results.
+ * Run a facet.range query on Solr which calculates the daily search results.
  *
  * @param string $search_index
  *   Name of the search index.
@@ -165,11 +165,11 @@ function newsfeeder_daily_search_results_get_the_number_of_daily_search_results(
   $params += [
     'ds_created' => '["' . $from . '" TO *]',
     'ds_created_1' => '[* TO "' . $to . '"]',
+    'facet' => 'true',
     'facet.range' => 'ds_created',
     'facet.range.start' => $from,
     'facet.range.end' => $to,
     'facet.range.gap' => '+1DAYS',
-    'facet' => 'true',
     'facet.sort' => 'count',
     // These were disabled to 0 results will be returned too.
     // 'facet.mincount' => 1,
@@ -395,7 +395,7 @@ function _newsfeeder_daily_search_results_get_old_statistics_files() {
     $filename = explode('_', $file->name);
     $filename = array_reverse($filename);
     // Try to find the timestamp in the end of the file name.
-    // The file name could contains an autoincrement suffix as well in rare
+    // The file name could contains an autoincrement suffix in really rare
     // cases, so we need this workaround.
     foreach ($filename as $part) {
       if ($created = preg_match('/^[0-9]{10}$/', $part)) {
@@ -487,7 +487,6 @@ function newsfeeder_daily_search_results_block_view($delta = '') {
  */
 function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_content() {
   $output = &drupal_static(__FUNCTION__, '');
-  // TODO Remove this, probably only MW problem.
   if (!empty($output)) {
     return '';
   }
