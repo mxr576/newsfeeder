@@ -54,7 +54,7 @@ function newsfeeder_demo_search_views_pre_render(&$view) {
   // Display the Export statistics link.
   if (!empty($query_params['from']) && !empty($query_params['to']) && (!empty($query_params['keywords']) || !empty($query_params['f']))) {
     // l() can not be used, because the url returned from url() already.
-    $output .= format_string('<a href="@url" target="_blank">Export statistics</a>', ['@url' => newsfeeder_daily_search_results_build_link_to_statistics_page('search_api@feed_items')]);
+    $output .= t('<a href="@url" target="_blank">Export statistics</a>', ['@url' => newsfeeder_daily_search_results_build_link_to_statistics_page('search_api@feed_items')]);
   }
 
   $view->attachment_before = $output;
