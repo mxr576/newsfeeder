@@ -224,16 +224,16 @@ function newsfeeder_hacks_cron_queue_info() {
  * @see newsfeeder_hacks_cron_queue_info()
  */
 function _newsfeeder_hacks_remove_term_references_queue_worker($nid) {
-  // Gather the terms which needs to be removed from this node.
-  $terms_to_delete = db_select('feeds_item_deleted_terms', 'fidt')
+  // Gather the terms which needs to be removed from this node's fields.
+  $remove_terms_from_fields = db_select('feeds_item_deleted_terms', 'fidt')
     ->condition('nid', $nid)
     ->fields('fidt', ['tid', 'field_name'])
     ->execute()
     ->fetchAllKeyed();
 
-  if (!empty($terms_to_delete)) {
+  if (!empty($remove_terms_from_fields)) {
     $emw = entity_metadata_wrapper('node', $nid);
-    foreach ($terms_to_delete as $tid => $field) {
+    foreach ($remove_terms_from_fields as $tid => $field) {
       $values = $emw->{$field}->raw();
       // Remove the terms from the term reference field values.
       $values = array_diff($values, [$tid]);
@@ -244,7 +244,7 @@ function _newsfeeder_hacks_remove_term_references_queue_worker($nid) {
       $emw->save();
       // Remove the deleted terms from the log table.
       db_delete('feeds_item_deleted_terms')->condition('nid', $nid)
-        ->condition('tid', array_keys($terms_to_delete), 'IN')
+        ->condition('tid', array_keys($remove_terms_from_fields), 'IN')
         ->execute();
       // Clear field cache of the node.
       cache_clear_all('field:node:' . $nid, 'cache_field');
@@ -339,8 +339,8 @@ function newsfeeder_hacks_delete_term_references_on_feed_items(stdClass $term) {
             $queue->createItem($nid);
             // Store the log entry about the removed term.
             // We store the deleted terms in a separated log table, because
-            // when the queue run, then it could delete all removed from
-            // from each node in one run.
+            // this way the queue worker will be able to remove multiple
+            // deleted terms from the same nodes in one run.
             try {
               db_insert('feeds_item_deleted_terms')->fields([
                 'nid' => $nid,

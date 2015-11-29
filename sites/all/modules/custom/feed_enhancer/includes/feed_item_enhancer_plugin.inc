@@ -79,7 +79,7 @@ interface FeedItemEnhancerPluginInterface {
    *   Settings of the plugin.
    *
    * @return bool
-   *   TRUE on success, else FALSE.
+   *   TRUE on success, otherwise FALSE.
    */
   public static function processFeedItem(EntityMetadataWrapper $feed_item_wrapper, array $settings);
 
