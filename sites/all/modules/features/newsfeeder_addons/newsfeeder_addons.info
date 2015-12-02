@@ -3,6 +3,7 @@ core = 7.x
 package = NewsFeeder
 version = 7.x-1.0-20151105dev1
 dependencies[] = context
+dependencies[] = context_feeds
 dependencies[] = views
 dependencies[] = views_content_cache
 features[context][] = feeds_source_node
