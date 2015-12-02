@@ -13,9 +13,19 @@ dependencies[] = number
 dependencies[] = options
 dependencies[] = path
 dependencies[] = taxonomy
-dependencies[] = field_ui
+
 dependencies[] = adminimal_admin_menu
-dependencies[] = features
+dependencies[] = admin_views
+dependencies[] = better_watchdog_ui
+dependencies[] = context
 dependencies[] = diff
-dependencies[] = strongarm
+dependencies[] = elysia_cron
+dependencies[] = features
 dependencies[] = module_filter
+dependencies[] = node_page_disable
+dependencies[] = strongarm
+dependencies[] = transliteration
+dependencies[] = uuid_features
+
+dependencies[] = newsfeeder_addons
+dependencies[] = newsfeeder_hacks
