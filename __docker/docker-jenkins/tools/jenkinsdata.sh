@@ -65,13 +65,15 @@ elif [ "${1}" = "restore" ]; then
       --name "${CONTAINER}" \
       -h "${CONTAINER}" \
       -v /jenkins \
-      dockerizedrupal/data:1.1.0
+      --entrypoint="/bin/echo" \
+      mxr576/docker-jenkins \
+      "Data only container for $CONTAINER"
 
     docker run \
       --rm \
       --volumes-from "${CONTAINER}" \
       -v "${WORKING_DIR}:/backup" \
-      --entrypoint /bin/bash \
+      --entrypoint="/bin/bash" \
       dockerizedrupal/base-debian-jessie:1.1.0 -c "tar xzvf /backup/${CONTAINER}.tar.gz"
   done
 else

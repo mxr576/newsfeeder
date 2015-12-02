@@ -10,4 +10,8 @@ class run::user {
   bash_exec { "chgrp -h $group_id /home/container -R":
     require => Bash_exec["groupmod -o -g $group_id container"]
   }
+  
+  bash_exec { "usermod -aG $group_id jenkins":
+    require => Bash_exec["groupmod -o -g $group_id container"]
+  }
 }
