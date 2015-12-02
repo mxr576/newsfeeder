@@ -59,6 +59,7 @@ php:
     - stanbol
     - redis
     - wce
+    - fkit
   environment:
     - VHOST_PROJECT_NAME=newsfeeder
     - VHOST_SERVICE_NAME=php
@@ -131,6 +132,7 @@ jenkins:
     - solr
     - stanbol
     - wce
+    - fkit
   volumes_from:
     - apache-data
     - jenkins-data
@@ -210,6 +212,21 @@ wce:
     - wce_data
 wce_data:
   image: mxr576/wce-api
-  command: echo "Data only container for the WCE API container."
+  command: echo "Data only container for the WCE-API container."
+  volumes:
+    - /var/log/supervisor/
+fkit:
+  image: mxr576/fkit-api
+  hostname: fkit
+  environment:
+    - NODE_ENV=production
+    - NODE_LOG_LEVEL=error
+  ports:
+    - "9999"
+  volumes_from:
+    - fkit_data
+fkit_data:
+  image: mxr576/fkit-api
+  command: echo "Data only container for the FKIT-API container."
   volumes:
     - /var/log/supervisor/
