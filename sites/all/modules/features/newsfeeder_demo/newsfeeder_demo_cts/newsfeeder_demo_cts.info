@@ -1,7 +1,7 @@
 name = NewsFeeder Demo: CTs
 core = 7.x
 package = NewsFeeder Demo
-version = 7.x-1.0-20151116dev1
+version = 7.x-1.0-20151201dev1
 dependencies[] = advanced_text_formatter
 dependencies[] = ctools
 dependencies[] = ds

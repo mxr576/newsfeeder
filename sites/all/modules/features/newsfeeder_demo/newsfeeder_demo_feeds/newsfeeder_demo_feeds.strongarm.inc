@@ -14,7 +14,7 @@ function newsfeeder_demo_feeds_strongarm() {
   $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
   $strongarm->api_version = 1;
   $strongarm->name = 'stanbol_enhancer_default_stanbol_endpoint';
-  $strongarm->value = 'http://dev.societalsecurity.net:8080';
+  $strongarm->value = 'http://stanbol:8080';
   $export['stanbol_enhancer_default_stanbol_endpoint'] = $strongarm;
 
   return $export;

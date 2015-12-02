@@ -74,6 +74,12 @@ function newsfeeder_demo_feed_source_statistics_views_default_views() {
       'empty_column' => 0,
     ),
   );
+  /* No results behavior: Global: Unfiltered text */
+  $handler->display->display_options['empty']['area_text_custom']['id'] = 'area_text_custom';
+  $handler->display->display_options['empty']['area_text_custom']['table'] = 'views';
+  $handler->display->display_options['empty']['area_text_custom']['field'] = 'area_text_custom';
+  $handler->display->display_options['empty']['area_text_custom']['empty'] = TRUE;
+  $handler->display->display_options['empty']['area_text_custom']['content'] = 'There is no Feed source created yet.';
   /* Relationship: Feeds item: Owner feed */
   $handler->display->display_options['relationships']['feed_nid']['id'] = 'feed_nid';
   $handler->display->display_options['relationships']['feed_nid']['table'] = 'feeds_item';
@@ -136,6 +142,7 @@ function newsfeeder_demo_feed_source_statistics_views_default_views() {
     t('‹ previous'),
     t('next ›'),
     t('last »'),
+    t('There is no Feed source created yet.'),
     t('Owner feed'),
     t('Title'),
     t('Published feed items'),

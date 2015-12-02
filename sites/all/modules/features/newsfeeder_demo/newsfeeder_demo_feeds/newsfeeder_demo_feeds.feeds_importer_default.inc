@@ -45,14 +45,14 @@ function newsfeeder_demo_feeds_feeds_importer_default() {
             'unique' => FALSE,
           ),
           1 => array(
-            'source' => 'description',
-            'target' => 'field_feed_item_content',
-            'format' => 'filtered_html',
+            'source' => 'guid',
+            'target' => 'guid',
+            'unique' => 0,
           ),
           2 => array(
-            'source' => 'timestamp',
-            'target' => 'created',
-            'unique' => FALSE,
+            'source' => 'url',
+            'target' => 'url',
+            'unique' => 1,
           ),
           3 => array(
             'source' => 'url',
@@ -60,24 +60,24 @@ function newsfeeder_demo_feeds_feeds_importer_default() {
             'unique' => FALSE,
           ),
           4 => array(
+            'source' => 'description',
+            'target' => 'field_feed_item_content',
+            'format' => 'filtered_html',
+          ),
+          5 => array(
+            'source' => 'timestamp',
+            'target' => 'created',
+            'unique' => FALSE,
+          ),
+          6 => array(
             'source' => 'author_name',
             'target' => 'field_feed_item_authors',
             'unique' => FALSE,
           ),
-          5 => array(
+          7 => array(
             'source' => 'tags',
             'target' => 'field_feed_item_categories',
             'unique' => FALSE,
-          ),
-          6 => array(
-            'source' => 'url',
-            'target' => 'url',
-            'unique' => 1,
-          ),
-          7 => array(
-            'source' => 'guid',
-            'target' => 'guid',
-            'unique' => 1,
           ),
         ),
         'update_existing' => '0',

@@ -2,6 +2,7 @@ name = NewsFeeder Demo: Feed source statistics
 core = 7.x
 package = NewsFeeder Demo
 version = 7.x-1.0-20151106dev1
+dependencies[] = ctools
 dependencies[] = newsfeeder_addons
 dependencies[] = newsfeeder_demo_feeds
 dependencies[] = views

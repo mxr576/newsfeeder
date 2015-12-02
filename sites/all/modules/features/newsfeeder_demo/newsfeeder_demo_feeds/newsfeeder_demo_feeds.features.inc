@@ -28,7 +28,7 @@ function newsfeeder_demo_feeds_default_feeds_importer_enhancer() {
         "status" : 1,
         "weight" : "-50",
         "proxy_settings" : {
-          "proxy_address" : "http:\\/\\/192.168.99.100:8001\\/?url=",
+          "proxy_address" : "http:\\/\\/wce:8001\\/?url=",
           "timeout" : "60",
           "number_of_tries" : "10",
           "feed_item_url_field" : "field_feed_item_url"
@@ -55,7 +55,7 @@ function newsfeeder_demo_feeds_default_feeds_importer_enhancer() {
         "status" : 1,
         "weight" : "-48",
         "proxy_settings" : {
-          "proxy_address" : "http:\\/\\/192.168.99.100:9999",
+          "proxy_address" : "http:\\/\\/fkit:9999",
           "timeout" : "30",
           "vocabularies" : "6",
           "text_field" : "field_feed_item_content",

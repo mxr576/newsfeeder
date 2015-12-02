@@ -55,8 +55,8 @@ function newsfeeder_demo_cts_ds_layout_settings_info() {
         3 => 'field_feed_item_authors',
         4 => 'field_feed_item_keywords',
         5 => 'field_feed_item_stanbol_orgs',
-        6 => 'field_feed_item_stanbol_places',
-        7 => 'field_feed_item_stanbol_people',
+        6 => 'field_feed_item_stanbol_people',
+        7 => 'field_feed_item_stanbol_places',
       ),
     ),
     'fields' => array(
@@ -66,8 +66,8 @@ function newsfeeder_demo_cts_ds_layout_settings_info() {
       'field_feed_item_authors' => 'ds_content',
       'field_feed_item_keywords' => 'ds_content',
       'field_feed_item_stanbol_orgs' => 'ds_content',
-      'field_feed_item_stanbol_places' => 'ds_content',
       'field_feed_item_stanbol_people' => 'ds_content',
+      'field_feed_item_stanbol_places' => 'ds_content',
     ),
     'classes' => array(),
     'wrappers' => array(
