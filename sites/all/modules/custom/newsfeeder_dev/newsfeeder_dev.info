@@ -1,0 +1,15 @@
+name = NewsFeeder: Development
+description = Development tools for the Newsfeeder.
+package = NewsFeeder
+core = 7.x
+version = 7.x-1.x
+
+dependencies[] = devel
+dependencies[] = search_krumo
+dependencies[] = field_ui
+dependencies[] = views_ui
+dependencies[] = context_ui
+dependencies[] = feed_enhancer_ui
+dependencies[] = feeds_ui
+dependencies[] = stanbol_enhancer_ui
+dependencies[] = queue_ui
