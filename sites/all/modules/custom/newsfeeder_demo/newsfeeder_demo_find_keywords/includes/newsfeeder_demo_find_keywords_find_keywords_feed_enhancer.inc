@@ -271,7 +271,8 @@ class FindKeywordsNodeFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin 
    *   Returns the found keywords on success, else FALSE.
    */
   public static function getKeywordsFromTheText($text, array $keywords, array $proxy_settings) {
-    $response = drupal_http_request($proxy_settings['proxy_address'], [
+    $proxy_address = variable_get('find_keywords_in_text_proxy', $proxy_settings['proxy_address']);
+    $response = drupal_http_request($proxy_address, [
       'method' => 'POST',
       'headers' => [
         'Accept' => 'application/json',
@@ -299,7 +300,7 @@ class FindKeywordsNodeFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin 
         $response->data = drupal_json_decode($response->data);
       }
       watchdog(get_called_class(), 'Find Keywords Proxy returned with unknown status code or error. Proxy URL: %proxy_url, details: <pre>@details</pre>', [
-        'proxy_url' => $proxy_settings['proxy_address'],
+        'proxy_url' => $proxy_address,
         '@details' => print_r($response, TRUE),
       ], WATCHDOG_WARNING);
     }

@@ -183,7 +183,9 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
    *   Content of the webpage on success, else FALSE.
    */
   public static function getFullContentOfUrl($url, array $proxy_settings) {
-    $response = drupal_http_request($proxy_settings['proxy_address'] . $url, [
+    // Allow global proxy address override.
+    $proxy_address = variable_get('full_content_enhancer_proxy', $proxy_settings['proxy_address']);
+    $response = drupal_http_request($proxy_address . $url, [
       'method' => 'GET',
       'headers' => [
         'Accept' => 'application/json',
@@ -198,9 +200,8 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
         return $data['content'];
       }
       else {
-        watchdog(get_called_class(), 'No content returned by the Full Content Proxy! Proxy URL: %proxy_url, requested URL: %req_url', [
-          '%proxy_url' => $proxy_settings['proxy_address'],
-          '%req_url' => $url,
+        watchdog(get_called_class(), 'No content returned by the Full Content Proxy! URL: %url', [
+          '%proxy_url' => $proxy_address . $url,
         ], WATCHDOG_WARNING);
         // Full Content Proxy wasn't and won't be able to extract the content
         // of the feed item (ex.: linked pdf files).
@@ -212,9 +213,8 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
       if (!empty($response->data)) {
         $response->data = drupal_json_decode($response->data);
       }
-      watchdog(get_called_class(), 'Full Content Proxy returned with unknown status code or error. Proxy URL: %proxy_url, requested URL: %req_url, details: <pre>@details</pre>', [
-        '%proxy_url' => $proxy_settings['proxy_address'],
-        '%req_url' => $url,
+      watchdog(get_called_class(), 'Full Content Proxy returned with unknown status code or error. URL: %url, details: <pre>@details</pre>', [
+        '%url' => $proxy_address . $url,
         '@details' => print_r($response, TRUE),
       ], WATCHDOG_WARNING);
     }
