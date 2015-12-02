@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the NewsFeeder Demo: Search module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function newsfeeder_demo_search_install() {
+  variable_set('solr_search_api_host', 'solr');
+  variable_set('nf_current_search_daily_stat_searcher', 'search_api@feed_items');
+  variable_set('stanbol_enhancer_default_stanbol_endpoint', 'http://stanbol:8080');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function newsfeeder_demo_search_uninstall() {
+  variable_del('solr_search_api_host');
+  variable_del('nf_current_search_daily_stat_searcher');
+  variable_del('stanbol_enhancer_default_stanbol_endpoint');
+}
