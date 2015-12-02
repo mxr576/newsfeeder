@@ -1,8 +1,14 @@
 name = NewsFeeder Demo
-description = Helper module to demonstrate the NewsFeeder features.
+description = Demonstrate the features of the NewsFeeder.
 package = NewsFeeder Demo
 core = 7.x
 
 dependencies[] = newsfeeder_demo_cts
+dependencies[] = newsfeeder_demo_feed_source_statistics
+dependencies[] = newsfeeder_demo_search
 dependencies[] = newsfeeder_demo_taxonomies
+dependencies[] = newsfeeder_demo_feeds
+dependencies[] = newsfeeder_demo_find_keywords
 dependencies[] = newsfeeder_hacks
+dependencies[] = newsfeeder_full_content_feed_enhancer
+dependencies[] = stanbol_enhancer

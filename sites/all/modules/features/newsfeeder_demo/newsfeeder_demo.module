@@ -13,11 +13,18 @@ function newsfeeder_demo_menu() {
 
   $items['newsfeeder-demo/import-feed-sources'] = [
     'title' => 'Import feed sources',
-    'description' => 'Description',
-    'access callback' => 'user_access',
     'access arguments' => ['administer site'],
     'page callback' => 'drupal_get_form',
     'page arguments' => ['newsfeeder_demo_import_feed_sources_form'],
+    'type' => MENU_NORMAL_ITEM,
+    'menu' => 'navigation',
+  ];
+
+  $items['newsfeeder-demo/import-keywords'] = [
+    'title' => 'Import keywords',
+    'access arguments' => ['administer site'],
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['newsfeeder_demo_import_keywords_form'],
     'type' => MENU_NORMAL_ITEM,
     'menu' => 'navigation',
   ];
@@ -51,7 +58,7 @@ function newsfeeder_demo_import_feed_sources_form_submit($form, &$form_state) {
   $batch = [
     'title' => t('Importing demo feed sources'),
     'operations' => [],
-    'progress_message' => t('Processed @current feed source from @total.'),
+    'progress_message' => t('Processed @current feed sources from @total.'),
     'error_message' => t('An error occurred during processing'),
     'finished' => '_newsfeeder_demo_import_feed_sources_batch_finished',
   ];
@@ -68,6 +75,57 @@ function newsfeeder_demo_import_feed_sources_form_submit($form, &$form_state) {
   }
 
   batch_set($batch);
+}
+
+/**
+ * Custom page callback for newsfeeder-demo/import-keywords.
+ *
+ * @see newsfeeder_demo_menu()
+ */
+function newsfeeder_demo_import_keywords_form($form, &$form_state) {
+  $form['actions'] = [
+    '#type' => 'actions',
+  ];
+
+  $form['actions']['submit'] = [
+    '#type' => 'submit',
+    '#value' => t('Import'),
+  ];
+
+  return $form;
+}
+
+/**
+ * Submit handler for newsfeeder_demo_keywords_sources_form().
+ *
+ * @see newsfeeder_demo_import_keywords_form()
+ */
+function newsfeeder_demo_import_keywords_form_submit($form, &$form_state) {
+  if ($vocab = taxonomy_vocabulary_machine_name_load('feed_item_keywords')) {
+    $batch = [
+      'title' => t('Importing demo keywords'),
+      'operations' => [],
+      'progress_message' => t('Processed @current keywords from @total.'),
+      'error_message' => t('An error occurred during processing'),
+      'finished' => '_newsfeeder_demo_import_keywords_form_finished',
+    ];
+    // Get the demo keywords from the file and add them to the queue for
+    // import.
+    if ($res = fopen(drupal_get_path('module', 'newsfeeder_demo') . '/demo_keywords.csv', 'r')) {
+      while ($line = fgetcsv($res)) {
+        $batch['operations'][] = [
+          '_newsfeeder_demo_import_keywords_form_operation',
+          [array_shift($line), $vocab],
+        ];
+      }
+      fclose($res);
+    }
+
+    batch_set($batch);
+  }
+  else {
+    drupal_set_message(t('Keywords vocabulary does not exists!'), 'error');
+  }
 }
 
 /**
@@ -137,11 +195,76 @@ function _newsfeeder_demo_import_feed_sources_batch_finished($success, $results,
       t('failed: @failed', ['@failed' => count($results['failed'])]),
       t('title import failed: @title_import', ['@title_import' => count($results['title_error'])]),
     ];
-    drupal_set_message(t('Import process successfully finished! @details', [
-      '@details' => theme('item_list', ['items' => $items]),
+    drupal_set_message(t('Import process successfully finished! !details', [
+      '!details' => theme('item_list', ['items' => $items]),
     ]), 'status');
   }
   else {
     drupal_set_message(t('Import process finished with problems. Check the log for more details!'), 'error');
   }
+}
+
+/**
+ * Batch process callback which import a new keyword.
+ *
+ * @param string $keyword
+ *   Keyword.
+ * @param \stdClass $vocab
+ *   Vocabulary object of the Keywords vocabulary.
+ * @param array $context
+ *   Batch context array.
+ *
+ * @see newsfeeder_demo_import_keywords_form_submit()
+ */
+function _newsfeeder_demo_import_keywords_form_operation($keyword, stdClass $vocab, array &$context) {
+  if (!_newsfeeder_demo_check_if_term_already_exists($keyword, $vocab)) {
+    $data = [
+      'name' => $keyword,
+      'vid' => $vocab->vid,
+    ];
+    $term = entity_create('taxonomy_term', $data);
+    $wrapper = entity_metadata_wrapper('taxonomy_term', $term);
+    try {
+      $wrapper->save();
+    }
+    catch (EntityMetadataWrapperException $e) {
+      watchdog_exception('newsfeeder_demo', $e);
+    }
+  }
+}
+
+/**
+ * Implements callback_batch_finished().
+ *
+ * Batch finish callback for keywords import batch.
+ *
+ * @see newsfeeder_demo_keywords_sources_form_submit()
+ */
+function _newsfeeder_demo_import_keywords_form_finished($success, $results, $operations) {
+  if ($success) {
+    drupal_set_message(t('Import process successfully finished!'), 'status');
+  }
+  else {
+    drupal_set_message(t('Import process finished with problems. Check the log for more details!'), 'error');
+  }
+}
+
+/**
+ * Check, if a term already exists in a vocab by its name.
+ *
+ * @param string $term_name
+ *   Name of the term.
+ * @param \stdClass $vocab
+ *   Vocabulary object.
+ *
+ * @return boolean
+ *   TRUE, if exists, otherwise FALSE.
+ */
+function _newsfeeder_demo_check_if_term_already_exists($term_name, stdClass $vocab) {
+  $tids = db_select('taxonomy_term_data', 'ttd')
+    ->fields('ttd', ['tid'])
+    ->condition('name', $term_name)
+    ->condition('tid', $vocab->vid)
+    ->execute()->fetchCol();
+  return !empty($tids);
 }
