@@ -14,7 +14,7 @@ apache:
     - php
   environment:
     - VHOST_PROJECT_NAME=newsfeeder
-    - VHOST_PRIMARY_SERVICE=True
+    - VHOST_PRIMARY_SERVICE='True'
     - VHOST_SERVICE_NAME=apache
     - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-apache-2.4/master/VERSION.md
     - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/apache-2.4/
@@ -159,7 +159,7 @@ solr:
   hostname: solr
   environment:
     - SOLR_SOLR_MEM_SIZE=512m
-    - PARTIAL_SEARCH_ENABLED=false
+    - PARTIAL_SEARCH_ENABLED='false'
   ports:
     - "8983"
   volumes_from:
