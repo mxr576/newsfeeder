@@ -19,6 +19,7 @@ if (module_exists('feed_enhancer')) {
      * {@inheritdoc}
      */
     public function configurationForm() {
+      module_load_include('module', 'stanbol_enhancer_ui');
       $form = [];
       $form['#processors'] = stanbol_enhancer_result_processor_info();
       $form['stanbol_enhancer'] = [
@@ -65,14 +66,13 @@ if (module_exists('feed_enhancer')) {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function configurationFormSubmit(array $form, array &$form_state, array &$values) {
       // Clean out empty field values, no need to save them.
       $values['stanbol_enhancer']['mapping'] = array_filter($values['stanbol_enhancer']['mapping']);
       return parent::configurationFormSubmit($form, $form_state, $values);
     }
-
 
     /**
      * {@inheritdoc}

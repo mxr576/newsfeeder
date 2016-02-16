@@ -75,6 +75,31 @@ function stanbol_enhancer_install() {
 }
 
 /**
+ * Implements hook_enable().
+ */
+function stanbol_enhancer_enable() {
+  $format_exists = db_select('filter_format', 'ff')->fields('ff', ['format'])->condition('format', 'stanbol_enhancer')->execute()->rowCount();
+  if (!$format_exists) {
+    // Create a custom input filter, which escapes all HTML from the texts.
+    $stanbol_enhancer_format = [
+      'format' => 'stanbol_enhancer',
+      'name' => 'Stanbol Enhancer',
+      'filters' => [
+        'filter_html' => [
+          'weight' => '-10',
+          'status' => 1,
+          'settings' => [
+            'allowed_html' => '',
+          ],
+        ],
+      ],
+    ];
+    $stanbol_enhancer_format = (object) $stanbol_enhancer_format;
+    filter_format_save($stanbol_enhancer_format);
+  }
+}
+
+/**
  * Implements hook_uninstall().
  */
 function stanbol_enhancer_uninstall() {

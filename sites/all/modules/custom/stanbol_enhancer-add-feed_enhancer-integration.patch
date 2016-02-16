@@ -1,0 +1,122 @@
+diff --git a/includes/feed_item_enhancer_plugin_stanbol.inc b/includes/feed_item_enhancer_plugin_stanbol.inc
+new file mode 100644
+index 0000000..50d019c
+--- /dev/null
++++ b/includes/feed_item_enhancer_plugin_stanbol.inc
+@@ -0,0 +1,84 @@
++<?php
++/**
++ * @file
++ * Contains the definition of the Stanbol Enhancer Feed Item Enhancer plugin.
++ */
++
++if (module_exists('feed_enhancer')) {
++  /**
++   * Class StanbolFeedItemEnhancerPlugin.
++   *
++   * Enhancer plugin, which process the (full) content of the feed item with
++   * the Apache Stanbol's Enhancer plugin.
++   *
++   * @see https://stanbol.apache.org/docs/trunk/components/enhancer/
++   */
++  class StanbolFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
++    /**
++     * {@inheritdoc}
++     */
++    public function configurationForm() {
++      module_load_include('module', 'stanbol_enhancer_ui');
++      $form = [];
++      $form['#processors'] = stanbol_enhancer_result_processor_info();
++      $form['stanbol_enhancer'] = [
++        '#type' => 'fieldset',
++        '#title' => t('Stanbol Enhancer settings'),
++        '#collapsible' => TRUE,
++        '#collapsed' => FALSE,
++      ];
++      // Set default minimum confidence level, if it has not been set.
++      if (!isset($this->settings['stanbol_enhancer']['minimum_confidence_level'])) {
++        $this->settings['stanbol_enhancer']['minimum_confidence_level'] = '0.5';
++      }
++      // Retrieve the Stanbol Enhancer configuration form.
++      $form['stanbol_enhancer'] += _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_generate_form('node', $this->getFeedImporterTargetNodeBundle(), $form['#processors'], $this->settings['stanbol_enhancer']);
++      // Alter the original form elements from the Stanbol Enhancer
++      // configuration form.
++      $form['stanbol_enhancer']['enabled'] = [
++        '#type' => 'value',
++        '#value' => TRUE,
++      ];
++      $form['stanbol_enhancer']['process_immediately']['#default_value'] = TRUE;
++      $form['stanbol_enhancer']['process_immediately']['#access'] = FALSE;
++      // Mark field as required.
++      $form['stanbol_enhancer']['field_to_analyze']['#states'] = [
++        'required' => [
++          'input[name="enhancers[' . $this->machineName . '][status]"]' => ['checked' => TRUE],
++        ],
++      ];
++      $form['stanbol_enhancer']['minimum_confidence_level']['#states'] = [
++        'required' => [
++          'input[name="enhancers[' . $this->machineName . '][status]"]' => ['checked' => TRUE],
++        ],
++      ];
++
++      return $form;
++    }
++
++    /**
++     * {@inheritdoc}
++     */
++    public function configurationFormValidate(array $form, array &$form_state, array &$values) {
++      _stanbol_enhancer_ui_entity_bundle_stanbol_enhancer_settings_form_validate($form['stanbol_enhancer'], $form_state, $values['stanbol_enhancer']);
++      parent::configurationFormValidate($form, $form_state, $values);
++    }
++
++    /**
++     * {@inheritdoc}
++     */
++    public function configurationFormSubmit(array $form, array &$form_state, array &$values) {
++      // Clean out empty field values, no need to save them.
++      $values['stanbol_enhancer']['mapping'] = array_filter($values['stanbol_enhancer']['mapping']);
++      return parent::configurationFormSubmit($form, $form_state, $values);
++    }
++
++    /**
++     * {@inheritdoc}
++     */
++    public static function processFeedItem(EntityMetadataWrapper $feed_item_wrapper, array $settings) {
++      return stanbol_enhancer_enhance_with_entity_wrapper($feed_item_wrapper, $settings['stanbol_enhancer']);
++    }
++
++  }
++}
+diff --git a/stanbol_enhancer.info b/stanbol_enhancer.info
+index 8c47ce4..4385960 100644
+--- a/stanbol_enhancer.info
++++ b/stanbol_enhancer.info
+@@ -5,3 +5,5 @@ core = 7.x
+ php = 5.6
+ 
+ dependencies[] = entity
++
++files[] = includes/feed_item_enhancer_plugin_stanbol.inc
+diff --git a/stanbol_enhancer.module b/stanbol_enhancer.module
+index afb38de..9fee2f8 100644
+--- a/stanbol_enhancer.module
++++ b/stanbol_enhancer.module
+@@ -1152,3 +1152,17 @@ function _stanbol_enhancer_geofield_value_callback(array $coordinates, array $fi
+ 
+   return $coordinates;
+ }
++
++/**
++ * Implements hook_feed_enhancer_plugins().
++ */
++function stanbol_enhancer_feed_enhancer_plugins() {
++  $plugins = [];
++  $plugins['feeder_enhancer_api_stanbol_enhancer'] = [
++    'name' => t('Stanbol Enhancer'),
++    'description' => t("Find places, organizations and people in the feed item's body. Also detect the language of the content."),
++    'class' => 'StanbolFeedItemEnhancerPlugin',
++    'weight' => 0,
++  ];
++  return $plugins;
++}

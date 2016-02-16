@@ -449,7 +449,7 @@ function stanbol_enhancer_enhance_content($content, array $config) {
     $url = $config['endpoint'] . '/enhancer';
     $response = drupal_http_request($url, [
       'method' => 'POST',
-      'data' => check_plain($content),
+      'data' => check_markup($content, 'stanbol_enhancer'),
       'headers' => [
         'Accept' => 'application/json',
         'Content-type' => 'text/plain',
@@ -458,7 +458,17 @@ function stanbol_enhancer_enhance_content($content, array $config) {
 
     if ($response->code == 200) {
       $result = drupal_json_decode($response->data);
-      return isset($result['@graph']) ? stanbol_enhancer_process_result($result['@graph'], $config) : [];
+      $data = [];
+      if (isset($result['@graph'])) {
+        return stanbol_enhancer_process_result($result['@graph'], $config);
+      }
+      // Sometimes only the language could be detected.
+      elseif (isset($result['language'])) {
+        unset($result['@context']);
+        $data[] = $result;
+      }
+
+      return stanbol_enhancer_process_result($data, $config);
     }
     else {
       watchdog(STANBOL_ENHANCER_WATCHDOG_TYPE, 'Stanbol Enhancer returned with unexpected status code on the %endpoint endpoint. Details: <pre>@details</pre>', [
@@ -488,6 +498,7 @@ function stanbol_enhancer_stanbol_enhancer_result_processor_info() {
     'conditions' => [
       'schema field' => 'language',
     ],
+    'group identifier' => STANBOL_ENHANCER_FIELD_TYPE_LANGUAGE,
     'processor callback' => '_stanbol_enhancer_language_process_callback',
     'processor callback settings' => [
       'ignore confidence' => TRUE,
@@ -735,7 +746,14 @@ function _stanbol_enhancer_places_process_callback(array $result, array $process
 function _stanbol_enhancer_get_language(array $languages) {
   uasort($languages, '_stanbol_enchancer_sort_fields_by_confidence');
   $language = array_shift($languages);
-  return $language['dc:language'];
+  $lang_code = LANGUAGE_NONE;
+  if (isset($language['language'])) {
+    $lang_code = $language['language'];
+  }
+  elseif (isset($language['dc:language'])) {
+    $lang_code = $language['dc:language'];
+  }
+  return $lang_code;
 }
 
 /**
@@ -995,7 +1013,7 @@ function _stanbol_enchancer_sort_fields_by_confidence($field_a, $field_b) {
   if ($a_confidence == $b_confidence) {
     return 0;
   }
-  return ($a_confidence < $b_confidence) ? -1 : 1;
+  return ($a_confidence < $b_confidence) ? 1 : -1;
 }
 
 /**
