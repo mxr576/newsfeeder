@@ -5,9 +5,11 @@
  * Module file for NewsFeeder: Daily Search Results.
  */
 
-define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_BLOCK', 'nf_current_search_daily_stat');
-define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_SEARCHER', 'nf_current_search_daily_stat_searcher');
-define('NEWSFEEDER_DAILY_SEARCH_RESULTS_STATS_FOLDER', 'public://nf_demo_daily_search_stats');
+define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_BLOCK', 'nf_daily_search_results_on_chart');
+define('NEWSFEEDER_DAILY_SEARCH_RESULTS_GENERATED_FILE_NAME_PREFIX', 'nf_daily _search_results_file_name_prefix');
+define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_SEARCHER', 'nf_daily_search_result_current_searcher');
+define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_KEYWORDS_PARAM', 'nf_daily_search_result_current_kw_param');
+define('NEWSFEEDER_DAILY_SEARCH_RESULTS_STATS_FOLDER', 'public://nf_daily_search_result');
 define('NEWSFEEDER_DAILY_SEARCH_RESULTS_CLEAN_STATS_QUEUE', 'newsfeeder_daily_search_results_delete_old_statistics_files');
 
 /**
@@ -17,11 +19,20 @@ function newsfeeder_daily_search_results_menu() {
   $items = [];
 
   $items['generate-daily-search-result-statistics'] = [
-    'title' => 'Generate daily search result statistics',
+    'title' => 'Generate statistics from current search',
     'access callback' => 'newsfeeder_daily_search_results_generate_daily_search_result_statistics_form_access',
     'page callback' => 'drupal_get_form',
     'page arguments' => ['newsfeeder_daily_search_results_generate_daily_search_result_statistics_form'],
     'type' => MENU_CALLBACK,
+  ];
+
+  $items['admin/config/search/daily-search-statistics'] = [
+    'title' => 'Daily Search results statistics',
+    'description' => 'Daily Search results statistics configuration settings.',
+    'access arguments' => ['administer site configuration'],
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['newsfeeder_daily_search_results_settings_form'],
+    'file' => 'newsfeeder_daily_search_results.admin.inc',
   ];
 
   return $items;
@@ -160,8 +171,8 @@ function newsfeeder_daily_search_results_build_link_to_statistics_page($searcher
  *   are the number of results for the given search; else and empty array.
  */
 function newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, $keyword = '', array $filters = [], array $params = []) {
-  $from = newsfeeder_solr_queries_convert_date_to_solr_date_format($from);
-  $to = newsfeeder_solr_queries_convert_date_to_solr_date_format($to);
+  $from = newsfeeder_solr_queries_convert_date_to_solr_date_format($from, NULL, FALSE);
+  $to = newsfeeder_solr_queries_convert_date_to_solr_date_format($to, NULL, FALSE, TRUE);
   $params += [
     'ds_created' => '["' . $from . '" TO *]',
     'ds_created_1' => '[* TO "' . $to . '"]',
@@ -284,7 +295,10 @@ function newsfeeder_daily_search_results_generate_csv_report_batch($search_index
   }
 
   $batch = [
-    'title' => t('Exporting daily search results statistics report between @from and @to', ['@from' => format_date(strtotime($from), 'custom', 'm/d/Y'), '@to' => format_date(strtotime($to), 'custom', 'm/d/Y')]),
+    'title' => t('Exporting daily search results statistics report between @from and @to', [
+      '@from' => format_date(strtotime($from), 'custom', 'm/d/Y'),
+      '@to' => format_date(strtotime($to), 'custom', 'm/d/Y'),
+    ]),
     'finished' => '_newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_finished',
     'progress_message' => t('Processed @current out of @total tasks.'),
     'error_message' => t('The export process has encountered a problem. Please try again!'),
@@ -296,22 +310,62 @@ function newsfeeder_daily_search_results_generate_csv_report_batch($search_index
   // Only add the necessary callbacks to the operations.
   if (!empty($keywords) || !empty($filters)) {
     if (!empty($keywords)) {
-      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation', [$search_index, $from, $to, $keywords, $params]]]);
-      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_export_merge_keyword_search_results_batch_operation', []]]);
+      $batch['operations'] = array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation',
+          [$search_index, $from, $to, $keywords, $params],
+        ],
+      ]);
+      $batch['operations'] = array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_export_merge_keyword_search_results_batch_operation',
+          [],
+        ],
+      ]);
 
     }
     if (!empty($filters)) {
-      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation', [$search_index, $from, $to, $filters, $params]]]);
-      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_export_merge_filter_search_results_batch_operation', []]]);
+      $batch['operations'] = array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation',
+          [$search_index, $from, $to, $filters, $params],
+        ],
+      ]);
+      $batch['operations'] = array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_export_merge_filter_search_results_batch_operation',
+          [],
+        ],
+      ]);
     }
 
     if (!empty($keywords) && !empty($filters)) {
-      $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_get_aggregated_keywords_and_filters_search_results_batch_operation', [$search_index, $from, $to, $keywords, $filters, $params]]]);
-      $batch['operations'] += array_merge($batch['operations'], [['_newsfeeder_daily_search_results_export_merge_aggregated_keywords_and_filters_search_results_batch_operation', []]]);
+      $batch['operations'] = array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_get_aggregated_keywords_and_filters_search_results_batch_operation',
+          [$search_index, $from, $to, $keywords, $filters, $params],
+        ],
+      ]);
+      $batch['operations'] += array_merge($batch['operations'], [
+        [
+          '_newsfeeder_daily_search_results_export_merge_aggregated_keywords_and_filters_search_results_batch_operation',
+          [],
+        ],
+      ]);
     }
 
-    $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_export_generate_date_columns_batch_operation', ['m/d/Y']]]);
-    $batch['operations'] = array_merge($batch['operations'], [['_newsfeeder_daily_search_results_export_write_results_to_file_batch_operation', [$from, $to, $keywords, $filters]]]);
+    $batch['operations'] = array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_export_generate_date_columns_batch_operation',
+        ['m/d/Y'],
+      ],
+    ]);
+    $batch['operations'] = array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_export_write_results_to_file_batch_operation',
+        [$from, $to, $keywords, $filters],
+      ],
+    ]);
 
   }
 
@@ -324,15 +378,13 @@ function newsfeeder_daily_search_results_generate_csv_report_batch($search_index
 function newsfeeder_daily_search_results_cronapi($op, $job = NULL) {
   // Delete old, generated statistics files every hour.
   $items['newsfeeder_daily_search_results_clean_old_stat_files_cron'] = [
-    'description' => t('Clean the old generated statistics files'),
+    'description' => t('Clean the old generated statistics files.'),
     'rule' => '0 * * * *',
   ];
   return $items;
 }
 
 /**
- * Implements hook_cron().
- *
  * Add old files to the queue for removing.
  *
  * @see newsfeeder_daily_search_results_cronapi()
@@ -445,6 +497,13 @@ function newsfeeder_daily_search_results_block_configure($delta = '') {
         '#empty_option' => t('- Select -'),
         '#options' => $searcher_options,
       ];
+      $form['keywords'] = [
+        '#type' => 'textfield',
+        '#required' => TRUE,
+        '#title' => t('Keywords parameter'),
+        '#description' => t('Which parameter contains the keywords in the query URL on the search page.'),
+        '#default_value' => variable_get(NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_KEYWORDS_PARAM, 'keywords'),
+      ];
       break;
   }
 
@@ -458,6 +517,7 @@ function newsfeeder_daily_search_results_block_save($delta = '', $edit = []) {
   switch ($delta) {
     case NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_BLOCK:
       variable_set(NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_SEARCHER, $edit['searcher']);
+      variable_set(NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_KEYWORDS_PARAM, $edit['keywords']);
       break;
   }
 }
@@ -505,84 +565,102 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
   // Try to get the from and to interval limits from the URL parameters.
   $from = newsfeeder_search_hacks_get_date_field_value_from_query_parameters('from');
   $to = newsfeeder_search_hacks_get_date_field_value_from_query_parameters('to');
-  if (!empty($from) && !empty($to)) {
-    if ($from == $to) {
-      return t('Please specify a time interval and add some keywords or apply some filters first.');
-    }
-
-    // Initialize the chart configuration array.
-    $chart = [
-      'id' => 'visualize_daily_search_results',
-      'type' => 'custom_frequency_graph',
-      'legend' => [],
-      'rows' => [],
-    ];
-
-    // Check if there any active free search term filter.
-    $keywords = newsfeeder_search_hacks_get_keywords_from_query_parameters([], 'keywords');
-    if (!empty($keywords)) {
-      $chart['legend'] += $keywords;
-      if (count($keywords) > 1) {
-        $chart['legend'][] = t('All keywords only');
-      }
-    }
-
-    // Check, if there any active facet filter.
-    $filters = [];
+  if (!empty($from) && !empty($to) && $from != $to) {
+    $keywords = newsfeeder_search_hacks_get_keywords_from_query_parameters([], variable_get(NEWSFEEDER_DAILY_SEARCH_RESULTS_CURRENT_SEARCH_ON_CHART_KEYWORDS_PARAM, 'keywords'));
     $active_facets = newsfeeder_search_hacks_get_active_facet_filters_of_searcher_grouped_by_filter_names($searcher);
-    if (!empty($active_facets)) {
-      array_walk($active_facets, function ($values, $filter) use (&$filters, &$chart) {
-        foreach ($values as $value) {
-          // Convert the active facet filters to valid query filter information.
-          $filters['im_' . $filter . '_' . $value]['value'] = $value;
-          $labels = newsfeeder_hacks_get_name_of_the_taxonomy_terms([$value]);
-          $chart['legend'][] = array_pop($labels);
-        }
-      });
-      if (count($filters) > 1) {
-        $chart['legend'][] = t('All filters only');
-      }
+
+    if (empty($keywords) && empty($active_facets)) {
+      return t('Please add some keywords or select some terms from the right side to show the frequency graph.');
     }
-    // Retrieve the query results.
-    $results = newsfeeder_daily_search_results_get_individiual_and_aggrageted_search_results_for_all_search_parameters($search_index, $from, $to, $keywords, $filters);
-    if (!empty($results)) {
-      // Process the keyword results.
-      if (!empty($keywords) && $results['keywords']) {
-        array_walk($results['keywords'], function ($results) use (&$chart) {
-          $chart['rows'] = array_merge_recursive($chart['rows'], $results);
-        });
+
+    libraries_load('d3.extend');
+    // Generate custom cache id for this search.
+    $cache_id = 'frequency_graph_' . drupal_hash_base64($search_index . $from . $to . implode($keywords) . serialize($active_facets));
+    // Try to find this search's frequency graph in the cache.
+    if ($cache = cache_get($cache_id)) {
+      return d3_draw($cache->data);
+    }
+    else {
+      // Initialize the chart configuration array.
+      $chart = [
+        'id' => 'visualize_daily_search_results',
+        'type' => 'custom_frequency_graph',
+        'legend' => [],
+        'rows' => [],
+      ];
+
+      // Check if there any active free search term filter.
+      if (!empty($keywords)) {
+        // Remove double quotes around the keywords.
+        $chart['legend'] += array_map(function ($keyword) {
+          return trim($keyword, '"');
+        }, $keywords);
         if (count($keywords) > 1) {
-          $chart['rows'] = array_merge_recursive($chart['rows'], $results['keywords-aggregated']);
+          $chart['legend'][] = t('All keywords only');
         }
       }
-      // Process the filter results.
-      if (!empty($filters) && !empty($results['filters'])) {
-        array_walk($results['filters'], function ($results) use (&$chart) {
-          $chart['rows'] = array_merge_recursive($chart['rows'], $results);
+
+      // Check, if there any active facet filter.
+      $filters = [];
+      if (!empty($active_facets)) {
+        array_walk($active_facets, function ($values, $filter) use (&$filters, &$chart) {
+          foreach ($values as $value) {
+            // Convert the active facet filters to valid query filter
+            // information.
+            $filters['im_' . $filter . '_' . $value]['value'] = $value;
+            $labels = newsfeeder_hacks_get_name_of_the_taxonomy_terms([$value]);
+            $chart['legend'][] = array_pop($labels);
+          }
         });
         if (count($filters) > 1) {
-          $chart['rows'] = array_merge_recursive($chart['rows'], $results['filters-aggregated']);
+          $chart['legend'][] = t('All filters only');
         }
       }
-      // Process the aggregated keywords and filters result.
-      if (!empty($keywords) && !empty($filters)) {
-        $chart['rows'] = array_merge_recursive($chart['rows'], $results['keywords-filters-aggregated']);
-        $chart['legend'][] = t('All search parameters');
+      // Retrieve the query results.
+      $results = newsfeeder_daily_search_results_get_individiual_and_aggrageted_search_results_for_all_search_parameters($search_index, $from, $to, $keywords, $filters);
+      if (!empty($results)) {
+        // Process the keyword results.
+        if (!empty($keywords) && $results['keywords']) {
+          array_walk($results['keywords'], function ($results) use (&$chart) {
+            $chart['rows'] = array_merge_recursive($chart['rows'], $results);
+          });
+          if (count($keywords) > 1) {
+            $chart['rows'] = array_merge_recursive($chart['rows'], $results['keywords-aggregated']);
+          }
+        }
+        // Process the filter results.
+        if (!empty($filters) && !empty($results['filters'])) {
+          array_walk($results['filters'], function ($results) use (&$chart) {
+            $chart['rows'] = array_merge_recursive($chart['rows'], $results);
+          });
+          if (count($filters) > 1) {
+            $chart['rows'] = array_merge_recursive($chart['rows'], $results['filters-aggregated']);
+          }
+        }
+        // Process the aggregated keywords and filters result.
+        if (!empty($keywords) && !empty($filters)) {
+          $chart['rows'] = array_merge_recursive($chart['rows'], $results['keywords-filters-aggregated']);
+          $chart['legend'][] = t('All search parameters');
+        }
+        // Generate date values from Solr dates.
+        $solr_dates = array_keys($chart['rows']);
+        $formatted_dates = [];
+        array_walk($solr_dates, function ($solr_date) use (&$formatted_dates) {
+          $ts = newsfeeder_solr_queries_parse_solr_iso_to_timestamp($solr_date);
+          $formatted_dates[$solr_date] = format_date($ts, 'custom', 'm/d/Y');
+        });
+        $chart['rows'] = array_merge_recursive($formatted_dates, $chart['rows']);
+        // Re-index the rows array from 0.
+        $chart['rows'] = array_values($chart['rows']);
+        // Draw the chart.
+        $output .= d3_draw($chart);
+        // Save the chart to the cache for an hour.
+        cache_set($cache_id, $chart, 'cache', strtotime('+1 hour'));
       }
-      // Generate date values from Solr dates.
-      $solr_dates = array_keys($chart['rows']);
-      $formatted_dates = [];
-      array_walk($solr_dates, function ($solr_date) use (&$formatted_dates) {
-        $ts = newsfeeder_solr_queries_parse_solr_iso_to_timestamp($solr_date);
-        $formatted_dates[$solr_date] = format_date($ts, 'custom', 'm/d/Y');
-      });
-      $chart['rows'] = array_merge_recursive($formatted_dates, $chart['rows']);
-      // Re-index the rows array from 0.
-      $chart['rows'] = array_values($chart['rows']);
-      // Draw the chart.
-      libraries_load('d3.extend');
-      $output .= d3_draw($chart);
     }
+  }
+  else {
+    $output .= t('Please specify a time interval and add some keywords or select some terms from the right side to show the frequency graph.');
   }
 
   return $output;

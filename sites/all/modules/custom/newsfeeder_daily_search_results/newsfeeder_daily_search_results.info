@@ -8,3 +8,4 @@ dependencies[] = elysia_cron
 dependencies[] = newsfeeder_hacks
 dependencies[] = newsfeeder_search_hacks
 dependencies[] = newsfeeder_solr_queries
+dependencies[] = transliteration

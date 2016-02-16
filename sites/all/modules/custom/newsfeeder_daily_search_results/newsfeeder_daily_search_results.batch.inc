@@ -18,7 +18,8 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_
   }
   $keywords_to_process = array_slice($keywords, $context['sandbox']['progress'], $context['sandbox']['limit_per_run']);
   foreach ($keywords_to_process as $keyword) {
-    $context['results']['results']['keywords'][$keyword] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, $keyword, [], $params);
+    $unquoted_keyword = trim($keyword, '"');
+    $context['results']['results']['keywords'][$unquoted_keyword] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, $keyword, [], $params);
     $context['message'] = t("@keyword keyword's daily search results successfully processed.", ['@keyword' => $keyword]);
     $context['sandbox']['progress']++;
   }
@@ -89,7 +90,10 @@ function _newsfeeder_daily_search_results_export_merge_keyword_search_results_ba
   $result_to_process = array_slice($context['results']['results']['keywords'], $context['sandbox']['progress'], $context['sandbox']['limit_per_run']);
   foreach ($result_to_process as $keyword) {
     $context['results']['csv_content'] = array_merge_recursive($context['results']['csv_content'], $keyword);
-    $context['message'] = t("@count/@max keyword's result processed for the export.", ['@count' => $context['sandbox']['progress'], '@max' => $context['sandbox']['max'] - 1]);
+    $context['message'] = t("@count/@max keyword's result processed for the export.", [
+      '@count' => $context['sandbox']['progress'],
+      '@max' => $context['sandbox']['max'] - 1,
+    ]);
     $context['sandbox']['progress']++;
   }
 
@@ -129,7 +133,10 @@ function _newsfeeder_daily_search_results_export_merge_filter_search_results_bat
   $result_to_process = array_slice($context['results']['results']['filters'], $context['sandbox']['progress'], $context['sandbox']['limit_per_run']);
   foreach ($result_to_process as $filter) {
     $context['results']['csv_content'] = array_merge_recursive($context['results']['csv_content'], $filter);
-    $context['message'] = t("@count/@max filter's result processed for the export.", ['@count' => $context['sandbox']['progress'], '@max' => $context['sandbox']['max'] - 1]);
+    $context['message'] = t("@count/@max filter's result processed for the export.", [
+      '@count' => $context['sandbox']['progress'],
+      '@max' => $context['sandbox']['max'] - 1,
+    ]);
     $context['sandbox']['progress']++;
   }
   // All filters result processed, now process the aggregated
@@ -200,11 +207,15 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
   if (empty($context['sandbox'])) {
     // Generate the header of the CSV file.
     $header = [];
-    $header[] = t('Date @from - @to', ['@from' => format_date(strtotime($from), 'custom', 'm/d/Y'), '@to' => format_date(strtotime($to), 'custom', 'm/d/Y')]);
+    $header[] = t('Date @from - @to', [
+      '@from' => format_date(strtotime($from), 'custom', 'm/d/Y'),
+      '@to' => format_date(strtotime($to), 'custom', 'm/d/Y'),
+    ]);
     // Add keywords, if any.
     if (!empty($keywords)) {
       array_walk($keywords, function ($keyword) use (&$header) {
-        $header[] = $keyword;
+        // Remove double quotes around the keyword.
+        $header[] = trim($keyword, '"');
       });
       $header[] = t('Keywords aggregated');
     }
@@ -221,8 +232,12 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
       $header[] = t('Keywords and filters aggregated');
     }
     // Generate unique file name and save the header to it.
-    $file_name = file_create_filename('nf_demo_daily_search_stat_' . strtotime('now') . '.csv', NEWSFEEDER_DAILY_SEARCH_RESULTS_STATS_FOLDER);
-    $context['results']['csv_file_name'] = format_string('nf_demo_daily_search_stat_@from_@to.csv', ['@from' => format_date(strtotime($from), 'custom', 'Ymd'), '@to' => format_date(strtotime($to), 'custom', 'Ymd')]);
+    $file_name = file_create_filename(variable_get(NEWSFEEDER_DAILY_SEARCH_RESULTS_GENERATED_FILE_NAME_PREFIX, '') . '_' . strtotime('now') . '.csv', NEWSFEEDER_DAILY_SEARCH_RESULTS_STATS_FOLDER);
+    $context['results']['csv_file_name'] = format_string('@filename_@from_@to.csv', [
+      '@filename' => variable_get(NEWSFEEDER_DAILY_SEARCH_RESULTS_GENERATED_FILE_NAME_PREFIX, ''),
+      '@from' => format_date(strtotime($from), 'custom', 'Ymd'),
+      '@to' => format_date(strtotime($to), 'custom', 'Ymd'),
+    ]);
     $context['results']['csv_file_path'] = file_unmanaged_save_data('', $file_name);
     $res = fopen($context['results']['csv_file_path'], 'w');
     fputcsv($res, $header);
@@ -237,7 +252,10 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
   $res = fopen($context['results']['csv_file_path'], 'a');
   foreach ($lines_to_write as $line) {
     fputcsv($res, $line);
-    $context['message'] = t('@progress/@max line successfully written to the export file.', ['@progress' => $context['sandbox']['progress'], '@max' => $context['sandbox']['max']]);
+    $context['message'] = t('@progress/@max lines have been successfully written to the export file.', [
+      '@progress' => $context['sandbox']['progress'],
+      '@max' => $context['sandbox']['max'],
+    ]);
     $context['sandbox']['progress']++;
   }
   fclose($res);
@@ -254,8 +272,13 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_
     drupal_add_http_header('Content-Type', 'text/csv');
     drupal_add_http_header('Content-Disposition', 'attachment; filename=' . $results['csv_file_name']);
     // Send the file to the user.
-    @readfile(file_create_url($results['csv_file_path']));
-    drupal_exit();
+    if ($wrapper = file_stream_wrapper_get_instance_by_uri($results['csv_file_path'])) {
+      @readfile($wrapper->realpath());
+      drupal_exit();
+    }
+    else {
+      drupal_set_message(t('Something went wrong, please try again!'), 'error');
+    }
   }
   else {
     drupal_set_message(t('Something went wrong, please try again!'), 'error');
