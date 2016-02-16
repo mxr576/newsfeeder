@@ -1,0 +1,276 @@
+<?php
+/**
+ * @file
+ * Module file for NewsFeeder: Results on maps.
+ */
+
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK', 'nf_results_on_maps_map');
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_SEARCHER', 'nf_results_on_map_current_search_on_map_searcher');
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_KEYWORDS_PARAM', 'nf_results_on_map_current_search_on_map_kw_param');
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK', 'nf_results_on_maps_heatmap');
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_SEARCHER', 'nf_results_on_map_current_search_on_heatmap_searcher');
+define('NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_KEYWORDS_PARAM', 'nf_results_on_map_current_search_on_heatmap_kw_param');
+
+/**
+ * Implements hook_block_info().
+ */
+function newsfeeder_results_on_maps_block_info() {
+  $blocks = [];
+  $blocks[NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK] = [
+    'info' => t('Newsfeeder: Results on map: Current search on map'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  ];
+  $blocks[NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK] = [
+    'info' => t('Newsfeeder: Results on map: Current search on heatmap'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  ];
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function newsfeeder_results_on_maps_block_configure($delta = '') {
+  $form = [];
+
+  switch ($delta) {
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK:
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK:
+      $searchers = facetapi_get_searcher_info();
+      $searcher_options = array_map(function ($searcher) {
+        return $searcher['name'];
+      }, $searchers);
+
+      $searcher_default_value = ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) ? variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_SEARCHER, '') : variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_SEARCHER, '');
+      $keywords_default_value = ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) ? variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_KEYWORDS_PARAM, 'keywords') : variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_KEYWORDS_PARAM, 'keywords');
+
+      $form['searcher'] = [
+        '#type' => 'select',
+        '#required' => TRUE,
+        '#title' => t('Searcher'),
+        '#description' => t('Selected the searcher that will be used in the queries.'),
+        '#default_value' => $searcher_default_value,
+        '#empty_option' => t('- Select -'),
+        '#options' => $searcher_options,
+      ];
+      $form['keywords'] = [
+        '#type' => 'textfield',
+        '#required' => TRUE,
+        '#title' => t('Keywords parameter'),
+        '#description' => t('Which parameter contains the keywords in the query URL on the search page.'),
+        '#default_value' => $keywords_default_value,
+      ];
+      break;
+  }
+
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ */
+function newsfeeder_results_on_maps_block_save($delta = '', $edit = []) {
+  switch ($delta) {
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK:
+      variable_set(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_SEARCHER, $edit['searcher']);
+      variable_set(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_KEYWORDS_PARAM, $edit['keywords']);
+      break;
+
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK:
+      variable_set(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_SEARCHER, $edit['searcher']);
+      variable_set(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_KEYWORDS_PARAM, $edit['keywords']);
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function newsfeeder_results_on_maps_block_view($delta = '') {
+  $block = [];
+
+  switch ($delta) {
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK:
+      $block['subject'] = '';
+      $block['content'] = [
+        '#markup' => _newsfeeder_results_on_maps_current_search_on_maps_block_content($delta),
+      ];
+      break;
+
+    case NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK:
+      $block['subject'] = '';
+      $block['content'] = [
+        '#markup' => _newsfeeder_results_on_maps_current_search_on_maps_block_content($delta),
+      ];
+      break;
+  }
+
+  return $block;
+}
+
+/**
+ * Build different maps from the current search results.
+ *
+ * @param string $delta
+ *   Maps block delta. @see newsfeeder_results_on_maps_block_view().
+ *
+ * @return string
+ *   Rendered map.
+ */
+function _newsfeeder_results_on_maps_current_search_on_maps_block_content($delta) {
+  $output = '';
+  $searcher = ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) ? variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_SEARCHER, '') : variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_SEARCHER, '');
+  if (empty($searcher)) {
+    // Display and error message about the missing configuration for the
+    // administrator.
+    if (user_access('administer blocks')) {
+      drupal_set_message(t('You need to set the Searcher in the <a href="@url">block settings</a> first!', ['@url' => url('admin/structure/block/manage/newsfeeder_results_on_maps/' . $delta . '/configure')]), 'error');
+    }
+    return '';
+  }
+  // Determine the search index that the searcher use.
+  $search_index = explode('@', $searcher);
+  $search_index = $search_index[1];
+  $from = newsfeeder_search_hacks_get_date_field_value_from_query_parameters('from');
+  $to = newsfeeder_search_hacks_get_date_field_value_from_query_parameters('to');
+  $keywords_param = ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) ? variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_KEYWORDS_PARAM, 'keywords') : variable_get(NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_KEYWORDS_PARAM, 'keywords');
+  $keywords = newsfeeder_search_hacks_get_keywords_from_query_parameters([], $keywords_param);
+  $active_facets = newsfeeder_search_hacks_get_active_facet_filters_of_searcher_grouped_by_filter_names($searcher);
+  // Generate custom cache id for this search.
+  $cache_id = $delta . '_' . drupal_hash_base64($search_index . $from . $to . implode($keywords) . serialize($active_facets));
+  // Try to find this search's map's data in the cache.
+  if ($cache = cache_get($cache_id)) {
+    $coordinates = $cache->data;
+  }
+  else {
+    $filters = [];
+    if (!empty($active_facets)) {
+      array_walk($active_facets, function ($values, $filter) use (&$filters) {
+        foreach ($values as $value) {
+          $filters['im_' . $filter . '_' . $value]['value'] = $value;
+        }
+      });
+    }
+
+    $results = newsfeeder_results_on_maps_get_map_data_from_this_search($search_index, $from, $to, $keywords, $filters);
+    // Generate coordinates data depending on the map requirements.
+    if ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) {
+      $coordinates = _newsfeeder_results_on_maps_preprocess_map_data($results);
+    }
+    elseif ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK) {
+      $coordinates = _newsfeeder_results_on_maps_preprocess_heatmap_data($results);
+    }
+    else {
+      $coordinates = [];
+    }
+  }
+
+  $map_info = leaflet_map_get_info('OSM Mapnik');
+  // Render the proper map if coordinates array is not empty, if empty
+  // something went wrong and the map can not be rendered properly.
+  if (!empty($coordinates)) {
+    if ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_MAP_BLOCK) {
+      $map = leaflet_build_map($map_info, $coordinates, '400px');
+    }
+    elseif ($delta == NEWSFEEDER_RESULTS_ON_MAPS_CURRENT_SEARCH_ON_HEATMAP_BLOCK) {
+      $map = leaflet_heatmap_build_map($map_info, $coordinates, '400px');
+    }
+    else {
+      $map = [];
+    }
+    $output .= '<div class="info">' . t('The maps display up to 3000 results. If your search query results in more than 3000 news articles, you will see the latest 3000 on the maps.') . '</div>';
+    $output .= drupal_render($map);
+    // Save the coordinates to the cache for an hour.
+    cache_set($cache_id, $coordinates, 'cache', strtotime('+1 hour'));
+  }
+
+  return $output;
+}
+
+/**
+ * Preprocess the results for the (Leaflet) map.
+ *
+ * @param array $results
+ *   Array of documents, returned from the Solr.
+ *   Check out @see newsfeeder_results_on_maps_get_map_data_from_this_search().
+ *
+ * @return array
+ *   Array of coordinates data.
+ */
+function _newsfeeder_results_on_maps_preprocess_map_data(array $results) {
+  $icon_path = '/' . drupal_get_path('module', 'ip_geoloc') . '/markers/red+dot.png';
+  return array_map(function ($doc) use ($icon_path) {
+    return [
+      'type' => 'point',
+      'lat' => array_shift($doc->places_lat),
+      'lon' => array_shift($doc->places_lng),
+      'popup' => l($doc->title[0], $doc->original_url, ['attributes' => ['target' => '_blank']]),
+      'icon' => [
+        'iconUrl' => $icon_path,
+      ],
+    ];
+  }, $results);
+}
+
+/**
+ * Preprocess the results for the (Leaflet) Heatmap.
+ *
+ * @param array $results
+ *   Array of documents, returned from the Solr.
+ * @see newsfeeder_results_on_maps_get_map_data_from_this_search()
+ *
+ * @return array
+ *   Array of coordinates data.
+ */
+function _newsfeeder_results_on_maps_preprocess_heatmap_data(array $results) {
+  return array_map(function ($doc) {
+    return [
+      'lat' => array_shift($doc->places_lat),
+      'lng' => array_shift($doc->places_lng),
+    ];
+  }, $results);
+}
+
+/**
+ * Build & run a Solr query, which returns the coordinates from the feed items.
+ *
+ * Parameters are the same as the newsfeeder_solr_queries_execute_query().
+ *
+ * TODO Fields which stores the coordinates should be configurable rather than
+ * hardcoded.
+ *
+ * @return array
+ *   Array of documents, returned by the Solr.
+ */
+function newsfeeder_results_on_maps_get_map_data_from_this_search($search_index, $from, $to, $keyword = '', array $filters = [], array $params = []) {
+  $from = newsfeeder_solr_queries_convert_date_to_solr_date_format($from, NULL, FALSE);
+  $to = newsfeeder_solr_queries_convert_date_to_solr_date_format($to, NULL, FALSE, TRUE);
+  $params += [
+    'facet' => TRUE,
+    'rows' => 3000,
+    'fl_1' => 'nid:item_id',
+    'fl_2' => 'title:tm_search_api_aggregation_1',
+    'fl_3' => 'places_lat:fm_field_place$lat',
+    'fl_4' => 'places_lng:fm_field_place$lng',
+    'fl_5' => 'original_url:ss_field_original_url$url',
+  ];
+
+  $filters += [
+    'bs_status' => ['value' => 'true'],
+    'ds_created' => ['value' => '["' . $from . '" TO *]'],
+    'ds_created_1' => ['value' => '[* TO "' . $to . '"]'],
+    // Require geofields not to be null.
+    // Probably it would be enough to require one of them only.
+    'fm_field_place$lat' => ['value' => '[* TO *]'],
+    'fm_field_place$lng' => ['value' => '[* TO *]'],
+    // Make sure that the original url also set.
+    'ss_field_original_url$url' => ['value' => '[* TO *]'],
+  ];
+
+  $response = newsfeeder_solr_queries_execute_query($search_index, $keyword, $filters, $params);
+  if ($response && isset($response->response->docs)) {
+    return $response->response->docs;
+  }
+
+  return [];
+}

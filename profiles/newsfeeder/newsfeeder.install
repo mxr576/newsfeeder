@@ -60,7 +60,16 @@ function newsfeeder_install() {
       'cache' => -1,
     ],
   ];
-  $query = db_insert('block')->fields(['module', 'delta', 'theme', 'status', 'weight', 'region', 'pages', 'cache']);
+  $query = db_insert('block')->fields([
+    'module',
+    'delta',
+    'theme',
+    'status',
+    'weight',
+    'region',
+    'pages',
+    'cache',
+  ]);
   foreach ($values as $record) {
     $query->values($record);
   }
