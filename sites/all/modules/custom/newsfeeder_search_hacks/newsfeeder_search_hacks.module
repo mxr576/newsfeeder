@@ -61,7 +61,7 @@ function newsfeeder_search_hacks_default_search_api_server() {
  *
  * Temporary fix for the date granularity issue of the queries.
  *
- * The main problem is the queries which contains date intervals could be
+ * The main problem of the queries which contains date intervals could be
  * demonstrated easily.
  * Let's assume that the user would like list those nodes which
  * created between today, for example 2015.01.01. The achieve this the user
@@ -80,11 +80,35 @@ function newsfeeder_search_hacks_default_search_api_server() {
  */
 function newsfeeder_search_hacks_search_api_query_alter(SearchApiQueryInterface $query) {
   $query_filters = $query->getFilter()->getFilters();
+  $site_timezone = variable_get('date_default_timezone', 'UTC');
   if (isset($query_filters[0]) && is_object($query_filters[0])) {
     $filters = &$query_filters[0]->getFilters();
     foreach ($filters as &$cond) {
-      if ($cond[0] == 'created' && $cond[2] == '<=') {
-        $cond[1] = strtotime('+1 day', $cond[1]) - 1;
+      if ($cond[0] == 'created') {
+        switch ($cond[2]) {
+          case '>=':
+            $from = new DateTime();
+            $from->setTimezone(new DateTimeZone($site_timezone));
+            $from->setTimestamp($cond[1]);
+            // Fix timezone handling.
+            $from->setTimezone(new DateTimeZone('UTC'));
+            $from->modify('tomorrow');
+            $from->modify('today');
+            $cond[1] = $from->getTimestamp();
+            break;
+
+          case '<=':
+            $to = new DateTime();
+            $to->setTimestamp($cond[1]);
+            $to->setTimezone(new DateTimeZone($site_timezone));
+            // Fix timezone handling.
+            $to->setTimezone(new DateTimeZone('UTC'));
+            $to->modify('tomorrow');
+            $to->modify('tomorrow');
+            $to->modify('1 second ago');
+            $cond[1] = $to->getTimestamp();
+            break;
+        }
       }
     }
   }
@@ -144,11 +168,13 @@ function newsfeeder_search_hacks_get_keywords_from_query_parameters(array $query
   $keywords = [];
   if (empty($query_params)) {
     $query_params = drupal_get_query_parameters();
-    if (!empty($query_params[$keywords_identifier])) {
-      // preg_match_all('/(?<!")\b\w+\b|(?<=")\b[^"]+/', $queryparams[$keywords_identifier], $keywords, PREG_PATTERN_ORDER);
-      // return $keywords[0];
-      return str_getcsv($query_params[$keywords_identifier], ' ', '"');
-    }
+  }
+  if (!empty($query_params[$keywords_identifier])) {
+    $keywords = str_getcsv($query_params[$keywords_identifier], ' ', '"');
+    // Close the keywords to double quotes to ensure the proper results.
+    $keywords = array_map(function ($keyword) {
+      return '"' . $keyword . '"';
+    }, $keywords);
   }
 
   return $keywords;
