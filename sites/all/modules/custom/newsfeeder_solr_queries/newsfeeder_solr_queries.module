@@ -52,7 +52,9 @@ function newsfeeder_solr_queries_base_query_object($search_index) {
  *   possible keys are: value, exclude, local.
  * @param array $params
  *   Associative array of additional query parameters, where the key is the
- *   name of the parameter and the value is the value of the parameter.
+ *   name of the parameter and the value is the value of the parameter. They
+ *   repeating parameter names also could contains a numeric suffix
+ *   like "facet.field_1".
  *
  * @return bool|object
  *   Return the full response object on success and FALSE if there were any
@@ -115,17 +117,35 @@ function newsfeeder_solr_queries_parse_solr_iso_to_timestamp($iso8601) {
  *
  * @param int $datestring
  *   Valid date string.
+ * @param string $add_interval
+ *   Toss the provided date string with the provided interval. Ex.: P1D.
+ * @param bool $start_of_the_day
+ *   If set the, then date will be rounded to the start of the day,
+ *   in other words to 00:00:00.
+ * @param bool $end_of_the_day
+ *   If set, then the date will be rounded to the end of the day, in other
+ *   words to 23:59:59.
  *
  * @return string
  *   ISO-8601 formatted string.
  */
-function newsfeeder_solr_queries_convert_date_to_solr_date_format($datestring) {
+function newsfeeder_solr_queries_convert_date_to_solr_date_format($datestring, $add_interval = NULL, $start_of_the_day = FALSE, $end_of_the_day = FALSE) {
   module_load_include('module', 'apachesolr');
-  $site_timezone = variable_get('date_default_timezone', 'UTC');
-  if ($site_timezone != 'UTC') {
-    $date = new DateTime($datestring, new DateTimeZone($site_timezone));
-    $date->setTimezone(new DateTimeZone('UTC'));
-    return apachesolr_date_iso($date->getTimestamp());
+  $date = new DateTime($datestring);
+  if (!empty($add_interval)) {
+    try {
+      $date->add(new DateInterval($add_interval));
+    }
+    catch (Exception $e) {
+      watchdog_exception('newsfeeder_solr_queries', $e);
+    }
   }
-  return apachesolr_date_iso($datestring);
+  if ($start_of_the_day) {
+    $date->modify('today');
+  }
+  if ($end_of_the_day) {
+    $date->modify('tomorrow');
+    $date->modify('1 second ago');
+  }
+  return $date->format('Y-m-d\TH:i:s\Z');
 }
