@@ -14,37 +14,32 @@ function newsfeeder_hacks_schema() {
   $schema['feeds_item_deleted_terms'] = [
     'description' => 'Stores the deleted terms from the feed nodes. These terms should be removed from the nodes in background.',
     'fields' => [
-      'nid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => 'The related {node}.nid.',
-      ),
-      'field_name' => array(
+      'field_name' => [
         'type' => 'varchar',
         'size' => 'normal',
         'length' => 32,
         'not null' => TRUE,
         'default' => '',
         'description' => 'The related {field_config}.field_name, which contains the term references to the terms.',
-      ),
-      'tid' => array(
+      ],
+      'tid' => [
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
         'description' => 'The deleted {taxonomy_term_data}.tid.',
+      ],
+      'created' => array(
+        'description' => 'The Unix timestamp when the term was deleted.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
       ),
     ],
     'unique keys' => [
-      'nid_field_name_tid' => ['nid', 'field_name', 'tid'],
+      'field_name_tid' => ['field_name', 'tid'],
     ],
     'foreign keys' => [
-      'node' => [
-        'table' => 'node',
-        'columns' => ['nid' => 'nid'],
-      ],
       'field' => [
         'table' => 'field_config',
         'columns' => ['field_name' => 'field_name'],
@@ -61,7 +56,15 @@ function newsfeeder_hacks_schema() {
 function newsfeeder_hacks_install() {
   variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD, NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD);
   variable_set(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS, '');
-  variable_set('queue_class_my_custom_queue', 'NewsFeederQueue');
+  variable_set('queue_default_class', 'NewsFeederQueue');
+  $schema['queue'] = [];
+  newsfeeder_hacks_schema_alter($schema);
+  foreach ($schema['queue']['fields'] as $name => $fields) {
+    db_add_field('queue', $name, $fields);
+  }
+  foreach ($schema['queue']['indexes'] as $name => $fields) {
+    db_add_index('queue', $name, $fields);
+  }
 }
 
 /**
@@ -70,5 +73,47 @@ function newsfeeder_hacks_install() {
 function newsfeeder_hacks_uninstall() {
   variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS);
   variable_del(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD);
-  variable_del('queue_class_my_custom_queue');
+  variable_del('queue_default_class');
+  $schema['queue'] = [];
+  newsfeeder_hacks_schema_alter($schema);
+  foreach ($schema['queue']['indexes'] as $name => $fields) {
+    db_drop_index('queue', $name);
+  }
+  foreach ($schema['queue']['fields'] as $name => $spec) {
+    db_drop_field('queue', $name);
+  }
+}
+
+/**
+ * Implements hook_schema_alter().
+ */
+function newsfeeder_hacks_schema_alter(&$schema) {
+  // Add some fields to the queue.
+  if (isset($schema['queue'])) {
+    $schema['queue']['fields'] = [
+      'tries' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'default' => 0,
+        'description' => 'Store the number of tries (failures) until this time, when the queue worker was not able to process the item.',
+      ],
+      'max_tries' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'default' => 0,
+        'description' => 'Store the maximum number of tries, before the item will be removed from the queue automatically.',
+      ],
+    ];
+    $schema['queue']['indexes'] = [
+      'queue_item_id_num_of_tries' => ['item_id', 'tries'],
+      'queue_item_id_max_tries' => ['item_id', 'max_tries'],
+      'queue_item_id_num_of_tries_max_tries' => [
+        'item_id',
+        'tries',
+        'max_tries',
+      ],
+    ];
+  }
 }

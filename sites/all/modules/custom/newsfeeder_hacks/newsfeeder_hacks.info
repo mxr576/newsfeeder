@@ -3,7 +3,9 @@ description = Contains some hacks and helper functions for the NewsFeeder.
 package = NewsFeeder
 core = 7.x
 
+dependencies[] = elysia_cron
 dependencies[] = entity
 dependencies[] = feeds
 
 files[] = includes/NewsFeederQueue.php
+files[] = includes/feed_item_enhancer_plugin_publish_if_content_language.inc

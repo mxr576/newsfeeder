@@ -5,13 +5,11 @@
  * Module file for NewsFeeder Hacks module.
  */
 
-define('NEWSFEEDER_HACKS_TITLE_REGEXP', '/<title>[\n\r\s]*([^<>]*[a-zA-Z ]*)[\n\r\s]*<\/title>/');
 define('NEWSFEEDER_HACKS_NODE_PROCESSOR_CLASS', 'FeedsNodeProcessor');
 define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_FEED_IMPORTERS', 'nf_hacks_unpublished_delete_feed_importers');
 define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD', 'nf_hacks_unpublished_delete_period');
 define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD', '4 0 1 * *');
 define('NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE', 'newsfeeder_hacks_delete_unpublished_feed_items');
-define('NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE', 'newsfeeder_hacks_remove_term_references');
 
 /**
  * Implements hook_menu().
@@ -28,6 +26,23 @@ function newsfeeder_hacks_menu() {
     'type' => MENU_LOCAL_ACTION,
   ];
   return $items;
+}
+
+/**
+ * Implements hook_feed_enhancer_plugins().
+ */
+function newsfeeder_hacks_feed_enhancer_plugins() {
+  $plugins = [];
+  if (module_exists('node')) {
+    $plugins['feed_item_enhancer_plugin_publish_if_content_language'] = [
+      'name' => t('Publish content, if its language is'),
+      'description' => t('This enhancer should run after the Stanbol Enhancer, when the imported Feed items were created unpublished by default. With this enhancer you can publish a feed item if it has a specific language.'),
+      'class' => 'PublishIfContentLanguageFeedItemEnhancerPlugin',
+      'weight' => -10,
+    ];
+  }
+
+  return $plugins;
 }
 
 /**
@@ -135,11 +150,127 @@ function newsfeeder_hacks_get_feed_importers_with_node_processors() {
  * Implements hook_cronapi().
  */
 function newsfeeder_hacks_cronapi($op, $job = NULL) {
+  // Remove expired queue items every 2:00am.
+  $items['newsfeeder_hacks_remove_expired_queue_items_cron'] = [
+    'description' => t('Remove expired queue items. Expired means here: tries == max_tries, where max_tries != 0.'),
+    'rule' => '* 2 * * *',
+  ];
   $items['newsfeeder_hacks_delete_unpublished_feed_items_cron'] = [
     'description' => t('Delete unpublished feed items of the <a href="@url">selected feeds importers</a>.', ['@url' => url('admin/structure/feeds/newsfeeder-hacks')]),
     'rule' => variable_get(NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_PERIOD, NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_DEFAULT_PERIOD),
   ];
+  // Cleaner should be run every night between 00:00 and 06:00 in every five
+  // minutes.
+  $items['newsfeeder_hacks_remove_deleted_term_references_from_feed_items_cron'] = [
+    'description' => t("Remove deleted terms from feed items' taxonomy term reference fields."),
+    'rule' => '*/5 0,6,5,4,3,2,1 * * *',
+  ];
   return $items;
+}
+
+/**
+ * Cron worker which removes the deleted term references from the feed items.
+ *
+ * @see newsfeeder_hacks_cronapi()
+ */
+function newsfeeder_hacks_remove_deleted_term_references_from_feed_items_cron() {
+  // Gather the fields which contains the deleted terms and they have to be
+  // updated.
+  $affected_fields = db_select('feeds_item_deleted_terms', 'fidt')
+    ->fields('fidt', ['field_name'])
+    ->groupBy('field_name')
+    ->execute()
+    ->fetchCol();
+
+  if (!empty($affected_fields)) {
+    array_walk($affected_fields, function ($field) {
+      // Deleted terms from field.
+      $tids = db_select('feeds_item_deleted_terms', 'fidt')
+        ->condition('field_name', $field)
+        ->fields('fidt', ['tid'])
+        ->execute()
+        ->fetchCol();
+      $nids = newsfeeder_hacks_get_nodes_where_these_terms_referenced_in_this_field($field, $tids, 10);
+      if (!empty($nids)) {
+        array_walk($nids, function ($nid) use ($tids, $field) {
+          try {
+            $emw = entity_metadata_wrapper('node', $nid);
+            $values = $emw->{$field}->raw();
+            // Remove the terms from the term reference field values.
+            $values = array_diff($values, $tids);
+            $emw->{$field} = $values;
+            $emw->save();
+          }
+          catch (Exception $e) {
+            watchdog_exception('newsfeeder_hacks', $e);
+          }
+        });
+      }
+      else {
+        try {
+          db_delete('feeds_item_deleted_terms')
+            ->condition('field_name', $field)
+            ->execute();
+        }
+        catch (Exception $e) {
+          watchdog_exception('newsfeeder_hacks', $e);
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Track the deleted term references from the feed (node) item fields.
+ *
+ * @param \stdClass $term
+ *   Term object.
+ */
+function newsfeeder_hacks_track_deleted_term_references_from_feed_item_fields(stdClass $term) {
+  // First check, if this term's vocabulary in use on any term. reference
+  // field of any feed node.
+  $feed_node_bundles = newsfeeder_hacks_get_node_bundles_from_feed_importer_with_node_processor();
+  array_walk($feed_node_bundles, function ($bundle) use ($term) {
+    $term_fields = newsfeeder_hacks_get_taxonomy_fields_of_node_bundle($bundle);
+    if (!empty($term_fields)) {
+      $fields_by_vocab = newsfeeder_hack_match_taxonomy_term_reference_fields_with_their_vocabularies($term_fields);
+      if (!empty($fields_by_vocab[$term->vocabulary_machine_name])) {
+        foreach ($fields_by_vocab[$term->vocabulary_machine_name] as $field) {
+          // Store a log entry about which term is removed and which fields
+          // are affected with its removal.
+          try {
+            db_insert('feeds_item_deleted_terms')->fields([
+              'field_name' => $field,
+              'tid' => $term->tid,
+              'created' => time(),
+            ])->execute();
+            drupal_set_message(t('The %term term will be removed from the referenced feed items in background.', ['%term' => $term->name]));
+          }
+          catch (Exception $e) {
+            watchdog_exception('newsfeeder_hack_term_reference_delete', $e);
+            // Throw the exception again to prevent taxonomy term removal.
+            throw $e;
+          }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Cron worker, which removes the expired queue items.
+ *
+ * Expired here means that the number of tries (failures) equals the maximum
+ * number of tries.
+ *
+ * @see newsfeeder_hacks_cronapi()
+ */
+function newsfeeder_hacks_remove_expired_queue_items_cron() {
+  db_delete('queue')
+    ->condition('expire', 0)
+    ->condition('max_tries', 0, '<>')
+    ->where('tries = max_tries')
+    ->execute();
 }
 
 /**
@@ -157,7 +288,10 @@ function newsfeeder_hacks_delete_unpublished_feed_items_cron() {
       $feed_items = newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($importer);
       if (!empty($feed_items)) {
         $nids = array_keys($feed_items);
-        $queue->createItem($nids);
+        $chunks = array_chunk($nids, 10);
+        array_walk($chunks, function ($chunk) use ($queue) {
+          $queue->createItem($chunk);
+        });
       }
     });
   }
@@ -200,63 +334,29 @@ function newsfeeder_hacks_get_unpublished_feed_items_of_the_feed_importer($impor
 }
 
 /**
+ * Implements hook_cron_queue_info_alter().
+ */
+function newsfeeder_hacks_cron_queue_info_alter(&$queues) {
+  // Do not run feeds_source_import queue with cron, it should be executed
+  // with Jenkins periodically.
+  $queues['feeds_source_import']['skip on cron'] = TRUE;
+}
+
+/**
  * Implements hook_cron_queue_info().
  */
 function newsfeeder_hacks_cron_queue_info() {
   $queues = [];
   $queues[NEWSFEEDER_HACKS_UNPUBLISHED_DELETE_QUEUE] = [
     'worker callback' => '_newsfeeder_hacks_delete_unpublished_feed_items_queue_worker',
-    'time' => 15,
-  ];
-  $queues[NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE] = [
-    'worker callback' => '_newsfeeder_hacks_remove_term_references_queue_worker',
-    'time' => 15,
+    'time' => 30,
+    'skip on cron' => TRUE,
   ];
   return $queues;
 }
 
 /**
- * Queue worker callback, which deletes the deleted terms from feed items.
- *
- * @param int $nid
- *   Node id of the feed item.
- *
- * @see newsfeeder_hacks_cron_queue_info()
- */
-function _newsfeeder_hacks_remove_term_references_queue_worker($nid) {
-  // Gather the terms which needs to be removed from this node's fields.
-  $remove_terms_from_fields = db_select('feeds_item_deleted_terms', 'fidt')
-    ->condition('nid', $nid)
-    ->fields('fidt', ['tid', 'field_name'])
-    ->execute()
-    ->fetchAllKeyed();
-
-  if (!empty($remove_terms_from_fields)) {
-    $emw = entity_metadata_wrapper('node', $nid);
-    foreach ($remove_terms_from_fields as $tid => $field) {
-      $values = $emw->{$field}->raw();
-      // Remove the terms from the term reference field values.
-      $values = array_diff($values, [$tid]);
-      $emw->{$field} = $values;
-    }
-    try {
-      // Save the updated node.
-      $emw->save();
-      // Remove the deleted terms from the log table.
-      db_delete('feeds_item_deleted_terms')->condition('nid', $nid)
-        ->condition('tid', array_keys($remove_terms_from_fields), 'IN')
-        ->execute();
-      // Clear field cache of the node.
-      cache_clear_all('field:node:' . $nid, 'cache_field');
-    }
-    catch (Exception $e) {
-      watchdog_exception('newsfeeder_hack_term_reference_delete', $e);
-    }
-  }
-}
-
-/**
- * Queue worker callback, which deletes the feed node with the given id.
+ * Queue worker callback, which deletes the feed nodes with the given ids.
  *
  * @param array $nids
  *   Array of node ids of the feed item nodes.
@@ -310,56 +410,7 @@ function _newsfeeder_hacks_get_title_of_feed_source($body) {
  * Implements hook_taxonomy_term_delete().
  */
 function newsfeeder_hacks_taxonomy_term_delete($term) {
-  newsfeeder_hacks_delete_term_references_on_feed_items($term);
-}
-
-/**
- * Remove the deleted term from the feed nodes' term. reference fields.
- *
- * @param \stdClass $term
- *   Term object.
- */
-function newsfeeder_hacks_delete_term_references_on_feed_items(stdClass $term) {
-  // First check, if this term's vocabulary in use on any term. reference
-  // field of any feed node.
-  $feed_node_bundles = newsfeeder_hacks_get_node_bundles_from_feed_importer_with_node_processor();
-  array_walk($feed_node_bundles, function ($bundle) use ($term) {
-    $term_fields = newsfeeder_hacks_get_taxonomy_fields_of_node_bundle($bundle);
-    if (!empty($term_fields)) {
-      $fields_by_vocab = newsfeeder_hack_match_taxonomy_term_reference_fields_with_their_vocabularies($term_fields);
-      if (!empty($fields_by_vocab[$term->vocabulary_machine_name])) {
-        // The field's vocab in use. Let's check, if any term reference
-        // field on any feed node contains this term as a value.
-        $queue = DrupalQueue::get(NEWSFEEDER_HACKS_REMOVE_TERM_REFERENCES_QUEUE);
-        $success = FALSE;
-        foreach ($fields_by_vocab[$term->vocabulary_machine_name] as $field) {
-          $nids = newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, $term->tid);
-          // Add the found nodes to the cleaner queue.
-          array_walk($nids, function ($nid) use ($queue, $field, $term, &$success) {
-            $queue->createItem($nid);
-            // Store the log entry about the removed term.
-            // We store the deleted terms in a separated log table, because
-            // this way the queue worker will be able to remove multiple
-            // deleted terms from the same nodes in one run.
-            try {
-              db_insert('feeds_item_deleted_terms')->fields([
-                'nid' => $nid,
-                'field_name' => $field,
-                'tid' => $term->tid,
-              ])->execute();
-              $success = TRUE;
-            }
-            catch (Exception $e) {
-              watchdog_exception('newsfeeder_hack_term_reference_delete', $e);
-            }
-          });
-        }
-        if ($success) {
-          drupal_set_message(t('The @term will be removed from the referenced feed items in the background.', ['@term' => $term->name]));
-        }
-      }
-    }
-  });
+  newsfeeder_hacks_track_deleted_term_references_from_feed_item_fields($term);
 }
 
 /**
@@ -428,21 +479,26 @@ function newsfeeder_hack_match_taxonomy_term_reference_fields_with_their_vocabul
 }
 
 /**
- * Return those nodes which contains reference a term in a field.
+ * Return those nodes which contains references to this terms in this field.
  *
  * @param string $field
  *   Name of the field.
- * @param int $tid
- *   Taxonomy term id.
+ * @param array $tids
+ *   Array of taxonomy term ids.
+ * @param int $limit
+ *   Number of items to return.
  *
  * @return array
  *   Array of node ids.
  */
-function newsfeeder_hacks_get_nodes_where_this_term_referenced_in_field($field, $tid) {
+function newsfeeder_hacks_get_nodes_where_these_terms_referenced_in_this_field($field, array $tids, $limit = NULL) {
   $query = new EntityFieldQuery();
-  $result = $query->entityCondition('entity_type', 'node')
-    ->fieldCondition($field, 'tid', $tid)
-    ->execute();
+  $query->entityCondition('entity_type', 'node')
+    ->fieldCondition($field, 'tid', $tids, 'IN');
+  if (isset($limit)) {
+    $query->range(0, $limit);
+  }
+  $result = $query->execute();
   if (!empty($result['node'])) {
     return array_keys($result['node']);
   }
@@ -478,4 +534,103 @@ function newsfeeder_hacks_views_query_alter(&$view, &$query) {
       $cond['field'] = $field . ' ' . $op . ' ' . (strtotime('+1 day', $value) - 1);
     }
   }
+}
+
+/**
+ * Implements hook_feeds_presave().
+ *
+ * Make sure that non-printable UTF8 characters will not cause database issue
+ * meanwhile the import. Also cut down the imported title's length to 255
+ * characters, which is the maximum of the default title field.
+ */
+function newsfeeder_hacks_feeds_presave(FeedsSource $source, $entity, $item, $entity_id) {
+  $importer_config = $source->importer()->getConfig();
+  if (isset($importer_config['processor']['plugin_key']) && $importer_config['processor']['plugin_key'] == 'FeedsNodeProcessor') {
+    $title_mapped_to = &drupal_static(__FUNCTION__ . '_' . $source->importer()->id . '_title', FALSE);
+    $description_mapped_to = &drupal_static(__FUNCTION__ . '_' . $source->importer()->id . '_description', FALSE);
+    // It is not possible that only one of them is set, but lets make sure
+    // about that both variable is set properly after this if processed.
+    // The main reason of this merged condition is to make sure that we
+    // loop through the mappings array only one time.
+    if (!$description_mapped_to || !$title_mapped_to) {
+      foreach ($importer_config['processor']['config']['mappings'] as $key => $values) {
+        switch ($values['source']) {
+          case 'description':
+            $description_mapped_to = $values['target'];
+            break;
+
+          case 'title':
+            $title_mapped_to = $values['target'];
+            break;
+        }
+        if ($title_mapped_to && $description_mapped_to) {
+          break;
+        }
+      }
+    }
+    if ($title_mapped_to || $description_mapped_to) {
+      $wrapper = entity_metadata_wrapper('node', $entity);
+      $properties = $wrapper->getPropertyInfo();
+      if ($title_mapped_to) {
+        if (!isset($properties[$title_mapped_to]['type'])) {
+          $wrapper->{$title_mapped_to} = substr(newsfeeder_hacks_clean_non_printable_utf_characters_from_string($wrapper->{$title_mapped_to}->value()), 0, 255);
+        }
+        elseif ($properties[$title_mapped_to]['type'] == 'text_formatted') {
+          $wrapper->{$title_mapped_to}->value = newsfeeder_hacks_clean_non_printable_utf_characters_from_string($wrapper->{$title_mapped_to}->value->value());
+        }
+        else {
+          watchdog('newsfeeder_hacks', 'Unknown/Unhandled field type: %type.', ['%type' => $properties[$title_mapped_to]['type']], WATCHDOG_WARNING);
+        }
+      }
+      if ($description_mapped_to) {
+        switch ($properties[$description_mapped_to]['type']) {
+          case 'text_formatted':
+            if (!empty($wrapper->{$description_mapped_to}->value())) {
+              $wrapper->{$description_mapped_to}->value = newsfeeder_hacks_clean_non_printable_utf_characters_from_string($wrapper->{$description_mapped_to}->value->value());
+            }
+            break;
+
+          default:
+            if (!empty($wrapper->{$description_mapped_to}->value())) {
+              $wrapper->{$description_mapped_to} = newsfeeder_hacks_clean_non_printable_utf_characters_from_string($wrapper->{$description_mapped_to}->value());
+            }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Helper function which removes all non-printable UTF8 characters.
+ *
+ * This is a necessary step to prevent database errors when a new feed item
+ * created or an existing one is saved.
+ *
+ * @param string $string
+ *   String, which needs to be cleaned.
+ *
+ * @return string
+ *   The cleaned string.
+ */
+function newsfeeder_hacks_clean_non_printable_utf_characters_from_string($string) {
+  // Remove all non-printable characters from the string, which could
+  // cause DB error on entity save.
+  // This regexp is originally found in the Portable UTF8 library,
+  // I've just borrowed it, because I did not need the whole library.
+  // https://github.com/voku/portable-utf8/
+  // https://github.com/voku/portable-utf8/blob/master/src/voku/helper/UTF8.php
+  // @see clean()
+  $regxp = '/
+               (
+                (?: [\x00-\x7F]                  # single-byte sequences   0xxxxxxx
+                |   [\xC2-\xDF][\x80-\xBF]       # double-byte sequences   110xxxxx 10xxxxxx
+                |   \xE0[\xA0-\xBF][\x80-\xBF]   # triple-byte sequences   1110xxxx 10xxxxxx * 2
+                |   [\xE1-\xEC][\x80-\xBF]{2}
+                |   \xED[\x80-\x9F][\x80-\xBF]
+                |   [\xEE-\xEF][\x80-\xBF]{2}
+                ){1,50}                          # ...one or more times
+               )
+               | .                                  # anything else
+               /x';
+  return preg_replace($regxp, '$1', $string);
 }
