@@ -26,10 +26,10 @@ function newsfeeder_demo_search_context_default_contexts() {
   $context->reactions = array(
     'block' => array(
       'blocks' => array(
-        'newsfeeder_daily_search_results-nf_current_search_daily_stat' => array(
+        'newsfeeder_daily_search_results-nf_daily_search_results_on_chart' => array(
           'module' => 'newsfeeder_daily_search_results',
-          'delta' => 'nf_current_search_daily_stat',
-          'region' => 'highlighted',
+          'delta' => 'nf_daily_search_results_on_chart',
+          'region' => 'featured',
           'weight' => '-10',
         ),
         'views-a6edfdf004d3cfbd263146e4433f9c77' => array(
