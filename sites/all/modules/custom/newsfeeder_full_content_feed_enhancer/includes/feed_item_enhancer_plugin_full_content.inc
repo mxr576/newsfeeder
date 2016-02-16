@@ -19,7 +19,7 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
       'full_content' => [
         'label' => t('Full Content'),
         'description' => '',
-        'property_types' => ['text', 'text_formatted', 'text_long'],
+        'property_types' => ['text_formatted', 'text_long'],
       ],
     ];
   }
@@ -119,30 +119,11 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
         // If Full Content successfully extracted from the feed item's URL,
         // then save it to the assigned field.
         if ($full_content = self::getFullContentOfUrl($feed_item_wrapper->{$settings['proxy_settings']['feed_item_url_field']}->url->value(), $settings['proxy_settings'])) {
-          // Remove all non-printable characters from the string, which could
-          // cause DB error on entity save.
-          // This regexp is originally found in the Portable UTF8 library,
-          // I've just borrowed it, because I did not need the whole library.
-          // https://github.com/voku/portable-utf8/
-          // https://github.com/voku/portable-utf8/blob/master/src/voku/helper/UTF8.php
-          // @see clean()
-          $regxp = '/
-               (
-                (?: [\x00-\x7F]                  # single-byte sequences   0xxxxxxx
-                |   [\xC2-\xDF][\x80-\xBF]       # double-byte sequences   110xxxxx 10xxxxxx
-                |   \xE0[\xA0-\xBF][\x80-\xBF]   # triple-byte sequences   1110xxxx 10xxxxxx * 2
-                |   [\xE1-\xEC][\x80-\xBF]{2}
-                |   \xED[\x80-\x9F][\x80-\xBF]
-                |   [\xEE-\xEF][\x80-\xBF]{2}
-                ){1,50}                          # ...one or more times
-               )
-               | .                                  # anything else
-               /x';
-          $full_content = preg_replace($regxp, '$1', $full_content);
+          $full_content = newsfeeder_hacks_clean_non_printable_utf_characters_from_string($full_content);
           // Validate full content value.
           if ($feed_item_wrapper->{$settings['properties']['full_content']}->validate($full_content)) {
             // Set the field value.
-            $feed_item_wrapper->{$settings['properties']['full_content']} = $full_content;
+            $feed_item_wrapper->{$settings['properties']['full_content']}->value = $full_content;
           }
           else {
             watchdog(get_called_class(), 'Returned full content from <a href="@url">this url</a> can not be stored in the %field field, because it is invalid. Full content: <pre>@full_content</pre>', [
@@ -152,8 +133,13 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
             ], WATCHDOG_WARNING);
           }
         }
+        else {
+          watchdog(get_called_class(), 'Empty content returned by the Full Content Proxy from <a href="@url">this url</a>.', [
+            '@url' => $feed_item_wrapper->{$settings['proxy_settings']['feed_item_url_field']}->url->value(),
+          ], WATCHDOG_WARNING);
+        }
         // TRUE, if full content retrieved and the Feed item's value
-        // successfully updated with it, else FALSE;
+        // successfully updated with it, else FALSE.
         return $full_content && $feed_item_wrapper->save();
       }
       else {
@@ -184,7 +170,8 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
    */
   public static function getFullContentOfUrl($url, array $proxy_settings) {
     // Allow global proxy address override.
-    $proxy_address = variable_get('full_content_enhancer_proxy', $proxy_settings['proxy_address']);
+    $proxy_address = empty($proxy_settings['proxy_address']) ? 'http://localhost:8001/?url=' : $proxy_settings['proxy_address'];
+    $proxy_address = variable_get('full_content_enhancer_proxy_address', $proxy_address);
     $response = drupal_http_request($proxy_address . $url, [
       'method' => 'GET',
       'headers' => [
@@ -201,7 +188,7 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
       }
       else {
         watchdog(get_called_class(), 'No content returned by the Full Content Proxy! URL: %url', [
-          '%proxy_url' => $proxy_address . $url,
+          '%url' => $proxy_address . $url,
         ], WATCHDOG_WARNING);
         // Full Content Proxy wasn't and won't be able to extract the content
         // of the feed item (ex.: linked pdf files).

@@ -17,13 +17,17 @@ function newsfeeder_demo_search_form_views_exposed_form_alter(&$form, $form_stat
     $form['from']['#default_value'] = date('Y-m-d', strtotime('-7 days'));
     $form['to']['#default_value'] = date('Y-m-d', strtotime('now'));
     // Set the default value of the From - To filters this way too, because
-    // we always need for the date values in the $_GET array for
+    // we always need the date values in the $_GET array for
     // displaying the statistics link.
     if (!isset($form_state['input']['from']['date'])) {
-      $_GET['from']['date'] = date('m/d/Y', strtotime('-7 days'));
+      $_GET['from'] = [
+        'date' => date('m/d/Y', strtotime('-7 days')),
+      ];
     }
     if (!isset($form_state['input']['to']['date'])) {
-      $_GET['to']['date'] = date('m/d/Y', strtotime('now'));
+      $_GET['to'] = [
+        'date' => date('m/d/Y', strtotime('now')),
+      ];
     }
 
     $form['#after_build'][] = 'newsfeeder_demo_search_form_newsfeeder_demo_feeds_search_views_exposed_form_after_build';
@@ -53,7 +57,7 @@ function newsfeeder_demo_search_views_pre_render(&$view) {
 
   // Display the Export statistics link.
   if (!empty($query_params['from']) && !empty($query_params['to']) && (!empty($query_params['keywords']) || !empty($query_params['f']))) {
-    // l() can not be used, because the url returned from url() already.
+    // l() can not be used, because the url has come from url() already.
     $output .= t('<a href="@url" target="_blank">Export statistics</a>', ['@url' => newsfeeder_daily_search_results_build_link_to_statistics_page('search_api@feed_items')]);
   }
 

@@ -573,6 +573,7 @@ function feed_enhancer_add_to_queue($enhancer_plugin, $entity_type, $bundle, $en
     'entity_type' => $entity_type,
     'bundle' => $bundle,
     'entity_id' => $entity_id,
+    'max_tries' => 10,
   ]);
 }
 
