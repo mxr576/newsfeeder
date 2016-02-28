@@ -26,7 +26,7 @@ function newsfeeder_search_hacks_default_search_api_server() {
   $host = variable_get('solr_search_api_host', 'localhost');
   $scheme = variable_get('solr_search_api_scheme', 'http');
   $port = variable_get('solr_search_api_port', '8983');
-  $path = variable_get('solr_search_api_path', '\\/solr/drupal');
+  $path = variable_get('solr_search_api_path', '\\/solr\\/drupal');
   $version = variable_get('solr_search_api_solr_version', 5);
 
   $items['master_solr_server'] = entity_import('search_api_server', '{
