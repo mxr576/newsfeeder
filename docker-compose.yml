@@ -54,7 +54,6 @@ php:
   links:
     - mysql
     - mailcatcher:smtp
-    - memcached
     - solr
     - stanbol
     - redis
@@ -94,27 +93,6 @@ phpmyadmin:
     - VHOST_SERVICE_NAME=phpmyadmin
     - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-phpmyadmin/master/VERSION.md
     - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/phpmyadmin/
-memcached:
-  image: dockerizedrupal/memcached:1.1.0
-  hostname: memcached
-  environment:
-    - VHOST_PROJECT_NAME=newsfeeder
-    - VHOST_SERVICE_NAME=memcached
-    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-memcached/master/VERSION.md
-    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/memcached/
-memcachephp:
-  image: dockerizedrupal/memcachephp:1.1.1
-  hostname: memcachephp
-  ports:
-    - "80"
-    - "443"
-  links:
-    - memcached
-  environment:
-    - VHOST_PROJECT_NAME=newsfeeder
-    - VHOST_SERVICE_NAME=memcachedphp
-    - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-memcachephp/master/VERSION.md
-    - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/memcachephp/
 jenkins:
   image: mxr576/docker-jenkins
   extends:
@@ -128,6 +106,7 @@ jenkins:
     - apache
     - mysql
     - php
+    - redis
     - solr
     - stanbol
     - wce
@@ -153,7 +132,7 @@ jenkins-data:
   volumes:
     - /jenkins
 solr:
-  image: mxr576/apachesolr-4.x-drupal-docker
+  image: mxr576/apachesolr-5.x-drupal-docker
   hostname: solr
   environment:
     - SOLR_SOLR_MEM_SIZE=512m
@@ -163,12 +142,12 @@ solr:
   volumes_from:
     - solr_data
 solr_data:
-  image: mxr576/apachesolr-4.x-drupal-docker
+  image: mxr576/apachesolr-5.x-drupal-docker
   command: echo "Data only container for the Apache Solr container."
   volumes:
-    - /opt/solr/example/solr/collection1/data
-    - /opt/solr/example/solr/collection1/conf
-    - /var/log/supervisor/
+    - /opt/solr/server/solr/drupal/data
+    - /opt/solr/server/solr/drupal/conf
+    - /var/log/supervisor
 redis:
   image: mxr576/redis
   hostname: redis
