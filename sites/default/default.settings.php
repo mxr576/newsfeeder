@@ -565,3 +565,17 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
  * Remove the leading hash signs to disable.
  */
 # $conf['allow_authorize_operations'] = FALSE;
+
+// Redis settings.
+define('PREDIS_BASE_PATH', DRUPAL_ROOT . '/profiles/newsfeeder/libraries/predis/');
+$conf['redis_client_interface'] = 'Predis';
+$conf['redis_client_host'] = 'redis';
+$conf['redis_client_port'] = 6379;
+$conf['redis_client_password'] = 'container';
+$conf['cache_backends'][] = 'profiles/newsfeeder/modules/contrib/redis/redis.autoload.inc';
+$conf['cache_default_class'] = 'Redis_Cache';
+$conf['cache_prefix'] = array('default' => 'nf');
+// Do not use Redis for cache_form (no performance difference).
+$conf['cache_class_cache_form'] = 'DrupalDatabaseCache';
+// Use Redis for Drupal locks (semaphore).
+$conf['lock_inc'] = 'profiles/newsfeeder/modules/contrib/redis/redis.lock.inc';
