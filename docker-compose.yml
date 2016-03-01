@@ -25,17 +25,18 @@ apache-data:
   volumes:
     - .:/apache/data
 mysql:
-  image: dockerizedrupal/mysql:1.1.0
+  image: mxr576/docker-mysql
   hostname: mysql
   volumes_from:
     - mysql-data
   environment:
+    - DEFAULT_DB=newsfeeder
     - VHOST_PROJECT_NAME=newsfeeder
     - VHOST_SERVICE_NAME=mysql
     - VHOST_VERSION_FILE_URL=https://raw.githubusercontent.com/dockerizedrupal/docker-mysql/master/VERSION.md
     - VHOST_REPOSITORY_URL=https://hub.docker.com/r/dockerizedrupal/mysql/
 mysql-data:
-  image: dockerizedrupal/mysql:1.1.0
+  image: mxr576/docker-mysql
   entrypoint: ["/bin/echo", "Data only container for Mysql."]
   hostname: mysql-data
   volumes:
