@@ -30,4 +30,4 @@ features[variable][] = pathauto_taxonomy_term_feed_item_categories_pattern
 features[variable][] = pathauto_taxonomy_term_feed_item_keywords_pattern
 features[variable][] = pathauto_taxonomy_term_feed_item_stanbol_organizations_pattern
 features[variable][] = pathauto_taxonomy_term_feed_item_stanbol_people_pattern
-project path = sites/all/modules/features/newsfeeder_demo
+project path = profiles/newsfeeder/modules/features/newsfeeder_demo

@@ -22,4 +22,4 @@ features[user_permission][] = import feed_importer feeds
 features[user_permission][] = unlock feed_importer feeds
 features[variable][] = stanbol_enhancer_default_stanbol_endpoint
 features_exclude[dependencies][ctools] = ctools
-project path = sites/all/modules/features/newsfeeder_demo
+project path = profiles/newsfeeder/modules/features/newsfeeder_demo

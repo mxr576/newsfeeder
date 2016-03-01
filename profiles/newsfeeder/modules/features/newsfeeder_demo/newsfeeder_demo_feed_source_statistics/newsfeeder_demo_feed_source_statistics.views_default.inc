@@ -79,7 +79,7 @@ function newsfeeder_demo_feed_source_statistics_views_default_views() {
   $handler->display->display_options['empty']['area_text_custom']['table'] = 'views';
   $handler->display->display_options['empty']['area_text_custom']['field'] = 'area_text_custom';
   $handler->display->display_options['empty']['area_text_custom']['empty'] = TRUE;
-  $handler->display->display_options['empty']['area_text_custom']['content'] = 'There is no Feed source created yet.';
+  $handler->display->display_options['empty']['area_text_custom']['content'] = 'There is not any feed source added yet.';
   /* Relationship: Feeds item: Owner feed */
   $handler->display->display_options['relationships']['feed_nid']['id'] = 'feed_nid';
   $handler->display->display_options['relationships']['feed_nid']['table'] = 'feeds_item';
@@ -142,7 +142,7 @@ function newsfeeder_demo_feed_source_statistics_views_default_views() {
     t('‹ previous'),
     t('next ›'),
     t('last »'),
-    t('There is no Feed source created yet.'),
+    t('There is not any feed source added yet.'),
     t('Owner feed'),
     t('Title'),
     t('Published feed items'),

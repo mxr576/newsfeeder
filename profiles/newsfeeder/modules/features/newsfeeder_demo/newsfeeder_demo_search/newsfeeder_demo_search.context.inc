@@ -29,20 +29,20 @@ function newsfeeder_demo_search_context_default_contexts() {
         'newsfeeder_daily_search_results-nf_daily_search_results_on_chart' => array(
           'module' => 'newsfeeder_daily_search_results',
           'delta' => 'nf_daily_search_results_on_chart',
-          'region' => 'featured',
+          'region' => 'content',
           'weight' => '-10',
         ),
         'views-a6edfdf004d3cfbd263146e4433f9c77' => array(
           'module' => 'views',
           'delta' => 'a6edfdf004d3cfbd263146e4433f9c77',
           'region' => 'content',
-          'weight' => '-10',
+          'weight' => '-9',
         ),
         'system-main' => array(
           'module' => 'system',
           'delta' => 'main',
           'region' => 'content',
-          'weight' => '-9',
+          'weight' => '-8',
         ),
         'facetapi-RlQjEMk10r0QfZQPri1g9jxV5GZxPAqh' => array(
           'module' => 'facetapi',

@@ -1,7 +1,7 @@
 name = NewsFeeder Add-ons
 core = 7.x
 package = NewsFeeder
-version = 7.x-1.0-20151105dev1
+version = 7.x-1.0-20160301dev1
 dependencies[] = context
 dependencies[] = context_feeds
 dependencies[] = views
@@ -14,4 +14,4 @@ features[views_view][] = feeds_source_imported_feed_items
 features_exclude[dependencies][ctools] = ctools
 files[] = views/views_handler_field_published_feed_items_count.inc
 files[] = views/views_handler_field_unpublished_feed_items_count.inc
-project path = sites/all/modules/features
+project path = profiles/newsfeeder/modules/features
