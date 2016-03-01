@@ -37,6 +37,19 @@ function newsfeeder_demo_menu() {
  * @see newsfeeder_demo_menu()
  */
 function newsfeeder_demo_import_feed_sources_form($form, &$form_state) {
+  $options = [10];
+  $options += range(25, 400, 25);
+  $options = drupal_map_assoc($options);
+  $options['400'] = t('- All -');
+  $form['num_of_feed_sources'] = [
+    '#type' => 'select',
+    '#required' => TRUE,
+    '#options' => $options,
+    '#title' => t('Maximum number of feed sources to importer'),
+    '#description' => t('The list of the demo feed sources file contains ~400 feed sources. How much feed sources do you want to import from them?'),
+    '#default_value' => 400,
+  ];
+
   $form['actions'] = [
     '#type' => 'actions',
   ];
@@ -65,11 +78,13 @@ function newsfeeder_demo_import_feed_sources_form_submit($form, &$form_state) {
   // Get the demo feed source from the file and add them to the queue for
   // import.
   if ($res = fopen(drupal_get_path('module', 'newsfeeder_demo') . '/demo_feed_sources.csv', 'r')) {
-    while ($line = fgetcsv($res)) {
+    $imported = 0;
+    while (($line = fgetcsv($res)) && $imported < $form_state['values']['num_of_feed_sources']) {
       $batch['operations'][] = [
         '_newsfeeder_demo_import_feed_sources_batch_operation',
         [array_shift($line)],
       ];
+      $imported++;
     }
     fclose($res);
   }
@@ -139,6 +154,11 @@ function newsfeeder_demo_import_keywords_form_submit($form, &$form_state) {
  * @see newsfeeder_demo_import_feed_sources_form_submit()
  */
 function _newsfeeder_demo_import_feed_sources_batch_operation($url, array &$context) {
+  if (empty($context['results'])) {
+    $context['results']['success'] = [];
+    $context['results']['failed'] = [];
+    $context['results']['title_error'] = [];
+  }
   if (!newsfeeder_hacks_check_if_feed_source_exists_with_url($url)) {
     try {
       // Try to reach the feed source.
@@ -195,7 +215,7 @@ function _newsfeeder_demo_import_feed_sources_batch_finished($success, $results,
       t('failed: @failed', ['@failed' => count($results['failed'])]),
       t('title import failed: @title_import', ['@title_import' => count($results['title_error'])]),
     ];
-    drupal_set_message(t('Import process successfully finished! !details', [
+    drupal_set_message(t('Import process finished successfully! !details', [
       '!details' => theme('item_list', ['items' => $items]),
     ]), 'status');
   }
@@ -242,7 +262,7 @@ function _newsfeeder_demo_import_keywords_form_operation($keyword, stdClass $voc
  */
 function _newsfeeder_demo_import_keywords_form_finished($success, $results, $operations) {
   if ($success) {
-    drupal_set_message(t('Import process successfully finished!'), 'status');
+    drupal_set_message(t('Import process finished successfully!'), 'status');
   }
   else {
     drupal_set_message(t('Import process finished with problems. Check the log for more details!'), 'error');
@@ -257,7 +277,7 @@ function _newsfeeder_demo_import_keywords_form_finished($success, $results, $ope
  * @param \stdClass $vocab
  *   Vocabulary object.
  *
- * @return boolean
+ * @return bool
  *   TRUE, if exists, otherwise FALSE.
  */
 function _newsfeeder_demo_check_if_term_already_exists($term_name, stdClass $vocab) {
