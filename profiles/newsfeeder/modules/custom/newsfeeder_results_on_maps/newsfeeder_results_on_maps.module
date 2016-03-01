@@ -250,9 +250,9 @@ function newsfeeder_results_on_maps_get_map_data_from_this_search($search_index,
     'rows' => 3000,
     'fl_1' => 'nid:item_id',
     'fl_2' => 'title:tm_search_api_aggregation_1',
-    'fl_3' => 'places_lat:fm_field_place$lat',
-    'fl_4' => 'places_lng:fm_field_place$lng',
-    'fl_5' => 'original_url:ss_field_original_url$url',
+    'fl_3' => 'places_lat:fm_field_feed_item_stanbol_places$lat',
+    'fl_4' => 'places_lng:fm_field_feed_item_stanbol_places$lon',
+    'fl_5' => 'original_url:ss_field_feed_item_url$url',
   ];
 
   $filters += [
@@ -261,10 +261,10 @@ function newsfeeder_results_on_maps_get_map_data_from_this_search($search_index,
     'ds_created_1' => ['value' => '[* TO "' . $to . '"]'],
     // Require geofields not to be null.
     // Probably it would be enough to require one of them only.
-    'fm_field_place$lat' => ['value' => '[* TO *]'],
-    'fm_field_place$lng' => ['value' => '[* TO *]'],
+    'fm_field_feed_item_stanbol_places$lat' => ['value' => '[* TO *]'],
+    'fm_field_feed_item_stanbol_places$lon' => ['value' => '[* TO *]'],
     // Make sure that the original url also set.
-    'ss_field_original_url$url' => ['value' => '[* TO *]'],
+    'ss_field_feed_item_url$url' => ['value' => '[* TO *]'],
   ];
 
   $response = newsfeeder_solr_queries_execute_query($search_index, $keyword, $filters, $params);
