@@ -57,12 +57,13 @@ function newsfeeder_demo_feeds_default_feeds_importer_enhancer() {
         "proxy_settings" : {
           "proxy_address" : "http:\\/\\/fkit:9999",
           "timeout" : "30",
-          "vocabularies" : "6",
+          "vocabularies" : "3",
           "text_field" : "field_feed_item_content",
           "distance" : "3"
         },
         "properties" : { "keywords" : "field_feed_item_keywords" }
-      }
+      },
+      "feed_item_enhancer_plugin_publish_if_content_language" : { "status" : 1, "weight" : "-47", "publish_if" : { "language" : "en" } }
     }
   }');
   return $items;

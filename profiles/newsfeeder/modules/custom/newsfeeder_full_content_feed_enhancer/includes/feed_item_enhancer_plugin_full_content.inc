@@ -19,7 +19,7 @@ class FullContentFeedItemEnhancerPlugin extends NodeFeedItemEnhancerPlugin {
       'full_content' => [
         'label' => t('Full Content'),
         'description' => '',
-        'property_types' => ['text_formatted', 'text_long'],
+        'property_types' => ['text', 'text_formatted', 'text_long'],
       ],
     ];
   }

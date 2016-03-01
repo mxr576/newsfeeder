@@ -1,7 +1,7 @@
 name = NewsFeeder Demo: Feeds
 core = 7.x
 package = NewsFeeder Demo
-version = 7.x-1.0-20151202dev1
+version = 7.x-1.0-20160301dev1
 dependencies[] = entity
 dependencies[] = features
 dependencies[] = feed_enhancer

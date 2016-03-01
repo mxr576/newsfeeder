@@ -26,23 +26,35 @@ function newsfeeder_demo_search_context_default_contexts() {
   $context->reactions = array(
     'block' => array(
       'blocks' => array(
+        'newsfeeder_results_on_maps-nf_results_on_maps_map' => array(
+          'module' => 'newsfeeder_results_on_maps',
+          'delta' => 'nf_results_on_maps_map',
+          'region' => 'content',
+          'weight' => '-10',
+        ),
+        'newsfeeder_results_on_maps-nf_results_on_maps_heatmap' => array(
+          'module' => 'newsfeeder_results_on_maps',
+          'delta' => 'nf_results_on_maps_heatmap',
+          'region' => 'content',
+          'weight' => '-9',
+        ),
         'newsfeeder_daily_search_results-nf_daily_search_results_on_chart' => array(
           'module' => 'newsfeeder_daily_search_results',
           'delta' => 'nf_daily_search_results_on_chart',
           'region' => 'content',
-          'weight' => '-10',
+          'weight' => '-8',
         ),
         'views-a6edfdf004d3cfbd263146e4433f9c77' => array(
           'module' => 'views',
           'delta' => 'a6edfdf004d3cfbd263146e4433f9c77',
           'region' => 'content',
-          'weight' => '-9',
+          'weight' => '-7',
         ),
         'system-main' => array(
           'module' => 'system',
           'delta' => 'main',
           'region' => 'content',
-          'weight' => '-8',
+          'weight' => '-6',
         ),
         'facetapi-RlQjEMk10r0QfZQPri1g9jxV5GZxPAqh' => array(
           'module' => 'facetapi',

@@ -22,6 +22,7 @@ dependencies[] = diff
 dependencies[] = elysia_cron
 dependencies[] = features
 dependencies[] = module_filter
+dependencies[] = redis
 dependencies[] = strongarm
 dependencies[] = transliteration
 dependencies[] = uuid_features

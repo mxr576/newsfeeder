@@ -8,7 +8,7 @@
  * Implements hook_field_group_info().
  */
 function newsfeeder_demo_cts_field_group_info() {
-  $export = array();
+  $field_groups = array();
 
   $field_group = new stdClass();
   $field_group->disabled = FALSE; /* Edit this to true to make a default field_group disabled initially */
@@ -37,7 +37,11 @@ function newsfeeder_demo_cts_field_group_info() {
       'formatter' => 'collapsed',
     ),
   );
-  $export['group_additional_info|node|feed_item|teaser'] = $field_group;
+  $field_groups['group_additional_info|node|feed_item|teaser'] = $field_group;
 
-  return $export;
+  // Translatables
+  // Included for use with string extractors like potx.
+  t('Additional info');
+
+  return $field_groups;
 }

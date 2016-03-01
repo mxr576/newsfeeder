@@ -38,7 +38,7 @@ function newsfeeder_demo_menu() {
  */
 function newsfeeder_demo_import_feed_sources_form($form, &$form_state) {
   $options = [10];
-  $options += range(25, 400, 25);
+  $options += range(0, 400, 25);
   $options = drupal_map_assoc($options);
   $options['400'] = t('- All -');
   $form['num_of_feed_sources'] = [
