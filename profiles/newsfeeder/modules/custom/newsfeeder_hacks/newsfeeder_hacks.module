@@ -29,6 +29,14 @@ function newsfeeder_hacks_menu() {
 }
 
 /**
+ * Implements hook_menu_alter().
+ */
+function newsfeeder_hacks_menu_alter(&$items) {
+  // Disable /node path.
+  $items['node']['page callback'] = 'drupal_not_found';
+}
+
+/**
  * Implements hook_feed_enhancer_plugins().
  */
 function newsfeeder_hacks_feed_enhancer_plugins() {
