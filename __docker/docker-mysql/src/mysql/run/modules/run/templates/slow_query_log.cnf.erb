@@ -1,0 +1,8 @@
+[mysqld]
+<% if @slow_query_log == "On" -%>
+slow_query_log = 1
+<% else -%>
+slow_query_log = 0
+<% end -%>
+slow_query_log_file = /var/log/mysql/stderr.log
+long_query_time = <%= @long_query_time %>
