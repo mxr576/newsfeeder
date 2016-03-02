@@ -3,8 +3,8 @@ jenkins:
   hostname: jenkins
   restart: always
   ports:
-    - "801:80"
-    - "4431:443"
+    - "80:80"
+    - "443:443"
   volumes_from:
     - jenkins-data
   cap_add:
@@ -22,12 +22,13 @@ jenkins:
     OPENVPN_PASSWORD:
     OPENVPN_CA_CERTIFICATE:
     MYSQL: Off
-    MYSQL_HOST: 
+    MYSQL_HOST:
     MYSQL_PORT: 3306
     USER_ID: 1000
     GROUP_ID: 1000
 jenkins-data:
   image: mxr576/docker-jenkins
   hostname: jenkins-data
+  entrypoint: ["/bin/echo", "Data-only container for Jenkins."]
   volumes:
     - /jenkins

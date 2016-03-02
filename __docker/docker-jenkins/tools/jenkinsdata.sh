@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.1.3"
+VERSION="1.1.7"
 
 shopt -s nullglob
 
@@ -54,7 +54,7 @@ if [ "${1}" = "backup" ]; then
         --volumes-from "${CONTAINER}" \
         -v "${WORKING_DIR}:/backup" \
         --entrypoint /bin/bash \
-        dockerizedrupal/base-debian-jessie:1.1.0 -c "tar czvf /backup/${CONTAINER_NAME}.tar.gz /jenkins"
+        mxr576/docker-jenkins -c "tar czvf /backup/${CONTAINER_NAME}.tar.gz /jenkins"
     done
   fi
 elif [ "${1}" = "restore" ]; then
@@ -65,16 +65,16 @@ elif [ "${1}" = "restore" ]; then
       --name "${CONTAINER}" \
       -h "${CONTAINER}" \
       -v /jenkins \
-      --entrypoint="/bin/echo" \
+      --entrypoint /bin/echo \
       mxr576/docker-jenkins \
-      "Data only container for $CONTAINER"
+      "Data only container for ${CONTAINER//-data[0-9]*/}."
 
     docker run \
       --rm \
       --volumes-from "${CONTAINER}" \
       -v "${WORKING_DIR}:/backup" \
       --entrypoint="/bin/bash" \
-      dockerizedrupal/base-debian-jessie:1.1.0 -c "tar xzvf /backup/${CONTAINER}.tar.gz"
+      mxr576/docker-jenkins -c "tar xzvf /backup/${CONTAINER}.tar.gz"
   done
 else
   unknown_command
