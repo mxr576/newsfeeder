@@ -13,6 +13,6 @@ solr_data:
   image: mxr576/apachesolr-5.x-drupal-docker
   command: echo "Data only container for the Apache Solr container."
   volumes:
-    - /opt/solr/example/solr/collection1/data
-    - /opt/solr/example/solr/collection1/conf
-    - /var/log/supervisor/
+    - /opt/solr/server/solr/drupal/data
+    - /opt/solr/server/solr/drupal/conf
+    - /var/log/supervisor

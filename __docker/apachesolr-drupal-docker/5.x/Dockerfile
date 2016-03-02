@@ -42,7 +42,7 @@ ADD run.sh /run.sh
 # Add executable right to the file.
 RUN chmod +x /run.sh
 
-VOLUME ["/opt/solr/server/solr/drupal/data", "/opt/solr/server/solr/drupal/conf", "/var/log/supervisor/"]
+VOLUME ["/opt/solr/server/solr/drupal/data", "/opt/solr/server/solr/drupal/conf", "/var/log/supervisor"]
 
 EXPOSE 8983
 
