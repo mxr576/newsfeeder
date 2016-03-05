@@ -10,11 +10,12 @@
  * Calculates the number of daily search results for each keyword
  * individually and aggregated.
  */
-function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation($search_index, $from, $to, array $keywords, array $params = [], &$context) {
+function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation($search_index, $from, $to, array $keywords, array $params = [], $aggregated, &$context) {
   if (empty($context['sandbox'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['limit_per_run'] = 5;
-    $context['sandbox']['max'] = count($keywords) + 1;
+    $context['sandbox']['max'] = $aggregated ? count($keywords) + 1 : count($keywords);
+    $context['results']['results']['keywords_aggregated'] = $aggregated;
   }
   $keywords_to_process = array_slice($keywords, $context['sandbox']['progress'], $context['sandbox']['limit_per_run']);
   foreach ($keywords_to_process as $keyword) {
@@ -24,7 +25,7 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_
     $context['sandbox']['progress']++;
   }
 
-  if ($context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
+  if ($aggregated && $context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
     $context['results']['results']['keywords-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, implode(' ', $keywords), [], $params);
     $context['message'] = t('Aggregated search result with all keywords successfully processed.');
     $context['sandbox']['progress']++;
@@ -38,11 +39,12 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_
  * Calculates the number of daily search results for each filter
  * individually and aggregated.
  */
-function _newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation($search_index, $from, $to, array $filters, array $params = [], &$context) {
+function _newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation($search_index, $from, $to, array $filters, array $params = [], $aggregated, &$context) {
   if (empty($context['sandbox'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['limit_per_run'] = 5;
-    $context['sandbox']['max'] = count($filters) + 1;
+    $context['sandbox']['max'] = $aggregated ? count($filters) + 1 : count($filters);
+    $context['results']['results']['filters_aggregated'] = $aggregated;
   }
   $filters_to_process = array_slice($filters, $context['sandbox']['progress'], $context['sandbox']['limit_per_run']);
   foreach ($filters_to_process as $filter => $value) {
@@ -51,7 +53,7 @@ function _newsfeeder_daily_search_results_get_individual_and_aggregated_filter_s
     $context['message'] = t("@name filter's daily search results successfully processed.", ['@name' => array_shift($terms)]);
     $context['sandbox']['progress']++;
   }
-  if ($context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
+  if ($aggregated && $context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
     $context['results']['results']['filters-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, '', $filters, $params);
     $context['message'] = t('Aggregated search result with all filters successfully processed.');
     $context['sandbox']['progress']++;
@@ -80,8 +82,8 @@ function _newsfeeder_daily_search_results_export_merge_keyword_search_results_ba
   if (empty($context['sandbox'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['limit_per_run'] = 10;
-    // +1, because of the aggregated keyword result.
-    $context['sandbox']['max'] = count($context['results']['results']['keywords']) + 1;
+    // +1, because of the aggregated keywords result.
+    $context['sandbox']['max'] = $context['results']['results']['keywords_aggregated'] ? count($context['results']['results']['keywords']) + 1 : count($context['results']['results']['keywords']);
     // Initialize the array, if it does not exists.
     if (!isset($context['results']['csv_content'])) {
       $context['results']['csv_content'] = [];
@@ -98,8 +100,8 @@ function _newsfeeder_daily_search_results_export_merge_keyword_search_results_ba
   }
 
   // All keywords result processed, now process the aggregated
-  // keyword result too.
-  if ($context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
+  // keywords result too, if necessary.
+  if ($context['results']['results']['keywords_aggregated'] && $context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
     $context['results']['csv_content'] = array_merge_recursive($context['results']['csv_content'], $context['results']['results']['keywords-aggregated']);
     $context['message'] = t("Aggregated keyword results processed for the export.");
     $context['sandbox']['progress']++;
@@ -123,8 +125,8 @@ function _newsfeeder_daily_search_results_export_merge_filter_search_results_bat
   if (empty($context['sandbox'])) {
     $context['sandbox']['progress'] = 0;
     $context['sandbox']['limit_per_run'] = 10;
-    // +1, because of the aggregated keyword result.
-    $context['sandbox']['max'] = count($context['results']['results']['filters']) + 1;
+    // +1, because of the aggregated filters result.
+    $context['sandbox']['max'] = $context['results']['results']['filters_aggregated'] ? count($context['results']['results']['filters']) + 1 : count($context['results']['results']['filters']);
     // Initialize the array, if it does not exists.
     if (!isset($context['results']['csv_content'])) {
       $context['results']['csv_content'] = [];
@@ -140,8 +142,8 @@ function _newsfeeder_daily_search_results_export_merge_filter_search_results_bat
     $context['sandbox']['progress']++;
   }
   // All filters result processed, now process the aggregated
-  // filter result too.
-  if ($context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
+  // filters result too, if necessary.
+  if ($context['results']['results']['filters_aggregated'] && $context['sandbox']['progress'] + 1 == $context['sandbox']['max']) {
     $context['results']['csv_content'] = array_merge_recursive($context['results']['csv_content'], $context['results']['results']['filters-aggregated']);
     $context['message'] = t("Aggregated filter results processed for the export.");
     $context['sandbox']['progress']++;
@@ -217,7 +219,9 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
         // Remove double quotes around the keyword.
         $header[] = trim($keyword, '"');
       });
-      $header[] = t('Keywords aggregated');
+      if ($context['results']['results']['keywords_aggregated']) {
+        $header[] = t('Keywords aggregated');
+      }
     }
     // Add the human readable name of the filters, if any.
     if (!empty($filters)) {
@@ -225,7 +229,9 @@ function _newsfeeder_daily_search_results_export_write_results_to_file_batch_ope
         $terms = newsfeeder_hacks_get_name_of_the_taxonomy_terms([$values['value']]);
         $header[] = array_shift($terms);
       });
-      $header[] = t('Filters aggregated');
+      if ($context['results']['results']['filters_aggregated']) {
+        $header[] = t('Filters aggregated');
+      }
     }
 
     if (!empty($keywords) && !empty($filters)) {

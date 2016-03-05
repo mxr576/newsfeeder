@@ -201,7 +201,7 @@ function newsfeeder_daily_search_results_get_the_number_of_daily_search_results(
 }
 
 /**
- * Returns daily stat. for each keywords and filters, plus aggregate results.
+ * Returns daily stat. for each keywords and filters, plus the agg. results.
  *
  * This function calculates the daily search results for each keyword and
  * filter parameters individually, calculates the keywords' aggregated results,
@@ -238,22 +238,26 @@ function newsfeeder_daily_search_results_get_the_number_of_daily_search_results(
  *     provided, then this contains the result of the query which executed
  *     with all keyword and filter parameters applied.
  */
-function newsfeeder_daily_search_results_get_individiual_and_aggrageted_search_results_for_all_search_parameters($search_index, $from, $to, array $keywords = [], array $filters = [], array $params = []) {
+function newsfeeder_daily_search_results_get_individual_and_aggregated_search_results_for_all_search_parameters($search_index, $from, $to, array $keywords = [], array $filters = [], array $params = []) {
   $data = [];
 
   if (!empty($keywords)) {
     foreach ($keywords as $keyword) {
       $data['keywords'][$keyword] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, $keyword, [], $params);
     }
-    $data['keywords-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, implode(' ', $keywords), [], $params);
   }
   if (!empty($filters)) {
     foreach ($filters as $filter => $value) {
       $data['filters'][$filter] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, '', [$filter => $value], $params);
     }
+  }
+  if (empty($filters) && count($keywords) > 1) {
+    $data['keywords-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, implode(' ', $keywords), [], $params);
+  }
+  else if (empty($keywords) && count($filters) > 1) {
     $data['filters-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, '', $filters, $params);
   }
-  if (!empty($keywords) && !empty($filters)) {
+  else {
     $data['keywords-filters-aggregated'] = newsfeeder_daily_search_results_get_the_number_of_daily_search_results($search_index, $from, $to, implode(' ', $keywords), $filters, $params);
   }
 
@@ -308,66 +312,66 @@ function newsfeeder_daily_search_results_generate_csv_report_batch($search_index
   $batch['operations'] = [];
 
   // Only add the necessary callbacks to the operations.
-  if (!empty($keywords) || !empty($filters)) {
-    if (!empty($keywords)) {
-      $batch['operations'] = array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation',
-          [$search_index, $from, $to, $keywords, $params],
-        ],
-      ]);
-      $batch['operations'] = array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_export_merge_keyword_search_results_batch_operation',
-          [],
-        ],
-      ]);
-
-    }
-    if (!empty($filters)) {
-      $batch['operations'] = array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation',
-          [$search_index, $from, $to, $filters, $params],
-        ],
-      ]);
-      $batch['operations'] = array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_export_merge_filter_search_results_batch_operation',
-          [],
-        ],
-      ]);
-    }
-
-    if (!empty($keywords) && !empty($filters)) {
-      $batch['operations'] = array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_get_aggregated_keywords_and_filters_search_results_batch_operation',
-          [$search_index, $from, $to, $keywords, $filters, $params],
-        ],
-      ]);
-      $batch['operations'] += array_merge($batch['operations'], [
-        [
-          '_newsfeeder_daily_search_results_export_merge_aggregated_keywords_and_filters_search_results_batch_operation',
-          [],
-        ],
-      ]);
-    }
-
+  if (!empty($keywords)) {
+    $aggregated = empty($filters) && count($keywords) > 1;
     $batch['operations'] = array_merge($batch['operations'], [
       [
-        '_newsfeeder_daily_search_results_export_generate_date_columns_batch_operation',
-        ['m/d/Y'],
+        '_newsfeeder_daily_search_results_get_individual_and_aggregated_keyword_search_results_batch_operation',
+        [$search_index, $from, $to, $keywords, $params, $aggregated],
       ],
     ]);
     $batch['operations'] = array_merge($batch['operations'], [
       [
-        '_newsfeeder_daily_search_results_export_write_results_to_file_batch_operation',
-        [$from, $to, $keywords, $filters],
+        '_newsfeeder_daily_search_results_export_merge_keyword_search_results_batch_operation',
+        [],
       ],
     ]);
 
   }
+  if (!empty($filters)) {
+    $aggregated = empty($keywords) && count($filters) > 1;
+
+    $batch['operations'] = array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_get_individual_and_aggregated_filter_search_results_batch_operation',
+        [$search_index, $from, $to, $filters, $params, $aggregated],
+      ],
+    ]);
+    $batch['operations'] = array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_export_merge_filter_search_results_batch_operation',
+        [],
+      ],
+    ]);
+  }
+
+  if (!empty($keywords) && !empty($filters)) {
+    $batch['operations'] = array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_get_aggregated_keywords_and_filters_search_results_batch_operation',
+        [$search_index, $from, $to, $keywords, $filters, $params],
+      ],
+    ]);
+    $batch['operations'] += array_merge($batch['operations'], [
+      [
+        '_newsfeeder_daily_search_results_export_merge_aggregated_keywords_and_filters_search_results_batch_operation',
+        [],
+      ],
+    ]);
+  }
+
+  $batch['operations'] = array_merge($batch['operations'], [
+    [
+      '_newsfeeder_daily_search_results_export_generate_date_columns_batch_operation',
+      ['m/d/Y'],
+    ],
+  ]);
+  $batch['operations'] = array_merge($batch['operations'], [
+    [
+      '_newsfeeder_daily_search_results_export_write_results_to_file_batch_operation',
+      [$from, $to, $keywords, $filters],
+    ],
+  ]);
 
   return $batch;
 }
@@ -570,7 +574,7 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
     $active_facets = newsfeeder_search_hacks_get_active_facet_filters_of_searcher_grouped_by_filter_names($searcher);
 
     if (empty($keywords) && empty($active_facets)) {
-      // return t('Please add some keywords or select some terms from the right side to show the frequency graph.');
+      return t('Please add some keywords or select some terms from the right side to show the frequency graph.');
     }
 
     libraries_load('d3.extend');
@@ -595,9 +599,6 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
         $chart['legend'] += array_map(function ($keyword) {
           return trim($keyword, '"');
         }, $keywords);
-        if (count($keywords) > 1) {
-          $chart['legend'][] = t('All keywords only');
-        }
       }
 
       // Check, if there any active facet filter.
@@ -612,19 +613,17 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
             $chart['legend'][] = array_pop($labels);
           }
         });
-        if (count($filters) > 1) {
-          $chart['legend'][] = t('All filters only');
-        }
       }
       // Retrieve the query results.
-      $results = newsfeeder_daily_search_results_get_individiual_and_aggrageted_search_results_for_all_search_parameters($search_index, $from, $to, $keywords, $filters);
+      $results = newsfeeder_daily_search_results_get_individual_and_aggregated_search_results_for_all_search_parameters($search_index, $from, $to, $keywords, $filters);
       if (!empty($results)) {
         // Process the keyword results.
         if (!empty($keywords) && $results['keywords']) {
           array_walk($results['keywords'], function ($results) use (&$chart) {
             $chart['rows'] = array_merge_recursive($chart['rows'], $results);
           });
-          if (count($keywords) > 1) {
+          if (empty($filters) && count($keywords) > 1) {
+            $chart['legend'][] = t('All keywords');
             $chart['rows'] = array_merge_recursive($chart['rows'], $results['keywords-aggregated']);
           }
         }
@@ -633,7 +632,8 @@ function _newsfeeder_daily_search_results_nf_current_search_daily_stat_block_con
           array_walk($results['filters'], function ($results) use (&$chart) {
             $chart['rows'] = array_merge_recursive($chart['rows'], $results);
           });
-          if (count($filters) > 1) {
+          if (empty($keywords) && count($filters) > 1) {
+            $chart['legend'][] = t('All filters');
             $chart['rows'] = array_merge_recursive($chart['rows'], $results['filters-aggregated']);
           }
         }
