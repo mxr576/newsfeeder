@@ -42,8 +42,10 @@ As you can see, the Apache's port is dynamically mapped to the host, so you'll n
 
 If you install the project with enabled NewsFeeder Demo features, then you'll see two links in the left sidebar: Import feed sources and Import keywords. I'd like to suggest you to visit these links and import some sample data for testing.
 
-You'll also get a PHPMyadmin and a Jenkins as well by using this Docker Compose file. The Jenkins is necessary for automatic execution of the background tasks (see above, "enhancers"). After the first startup of the project you'll need to import the pre-configured settings for the Jenkins by navigating to the `__docker/docker-jenkins/tools` path and executing the `./jenkinsdata.sh restore` command. After that, you'll need to restart the Jenkins container with `docker restart newsfeeder_jenkins_1` command. When to container successfully restarted, then you can access to the configured Jenkins on the http://localhost:8080 address and login with the container/container user and password.
+You'll also get a PHPMyadmin and a Jenkins as well by using this Docker Compose file. The Jenkins is necessary for automatic execution of the background tasks (see above, "enhancers"). After the first startup of the project you'll need to import the pre-configured settings for the Jenkins by navigating to the `__docker/docker-jenkins/tools` path and executing the `./jenkinsdata.sh restore` command<sup> __*__ </sup>. After that, you'll need to restart the Jenkins container with `docker restart newsfeeder_jenkins_1` command. When to container successfully restarted, then you can access to the configured Jenkins on the http://localhost:8080 address and login with the container/container user and password.
 
+
+<sup> __*__ </sup> Because Github does not play well with files which bigger than 100mb, I had to remove the backed up configuration from the repository. You can download it from [here](http://biczodezso.hu/sites/default/files/newsfeeder_jenkins-data_1.tar.gz) and please save it to the `__docker/docker-jenkins/tools` folder before you execute to restore command.
 
 ## Highlighted features
 
