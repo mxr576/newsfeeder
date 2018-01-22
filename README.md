@@ -4,7 +4,7 @@
 The **NewsFeeder** is a Drupal 7 based Drupal distribution which sharpened to be a kick-starter for importing-, processing and visualizing the content of RSS/Atom feeds.
 The default install profile install and set up only the necessary Drupal modules, but if you just would like to try the features of this distribution, then I'd like to suggest you to meanwhile the installation process select the NewsFeeder Demo & NewsFeeder Development features as well.
 
-If you would like to see the real power of the NewsFeeder, please click to the following link: [societalsecurity.net/media-watch](http://societalsecurity.net/media-watch)
+If you would like to see the real power of the NewsFeeder, please click to the following link: [societalsecurity.net/media-watch](http://observatory.societalsecurity.net/media-watch)
 
 
 ## Importing
